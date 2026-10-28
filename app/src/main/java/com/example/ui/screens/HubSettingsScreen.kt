@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -83,6 +84,7 @@ fun HubSettingsScreen(
     onUpdateAirMotionSensitivity: (Float) -> Unit,
     onToggleVolumeButtons: () -> Unit,
     onConnectToDiscoveredHost: (DiscoveredHost) -> Unit,
+    onDisconnect: () -> Unit = {},
     onLayoutChange: (TouchpadLayout) -> Unit,
     onRoleChange: (AppRole) -> Unit,
     modifier: Modifier = Modifier
@@ -261,21 +263,40 @@ fun HubSettingsScreen(
                                 }
                             }
 
-                            Button(
-                                onClick = { onConnectToDiscoveredHost(host) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isCurrent) DotGreenMild else WhitePrimary,
-                                    contentColor = TrueBlack
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Text(
-                                    text = if (isCurrent) "Connected" else "Connect",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TrueBlack
-                                )
+                            if (isCurrent) {
+                                Button(
+                                    onClick = onDisconnect,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF2D1414),
+                                        contentColor = Color(0xFFF87171)
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Text(
+                                        text = "Disconnect",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFF87171)
+                                    )
+                                }
+                            } else {
+                                Button(
+                                    onClick = { onConnectToDiscoveredHost(host) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = WhitePrimary,
+                                        contentColor = TrueBlack
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Text(
+                                        text = "Connect",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TrueBlack
+                                    )
+                                }
                             }
                         }
                     }

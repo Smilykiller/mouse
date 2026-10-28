@@ -37,6 +37,7 @@ sealed class RemoteCommand {
     data class Key(val keyName: String) : RemoteCommand()
     data class Text(val content: String) : RemoteCommand()
     data class Presence(val deviceId: String, val deviceName: String) : RemoteCommand()
+    object Disconnect : RemoteCommand()
 
     fun toWireString(deviceId: String): String {
         return when (this) {
@@ -48,6 +49,7 @@ sealed class RemoteCommand {
             is Key -> "K:$keyName:$deviceId"
             is Text -> "T:${content.replace("\\", "\\\\").replace(":", "\\:").replace("\n", "\\n")}:$deviceId"
             is Presence -> "P:$deviceId:${deviceName.replace(":", "-")}"
+            is Disconnect -> "X:bye:$deviceId"
         }
     }
 }

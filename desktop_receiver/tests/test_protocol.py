@@ -35,8 +35,14 @@ class ParseTests(unittest.TestCase):
         self.assertIsNone(ar.parse_packet("AIRGLIDE_ACK:MYLAPTOP:5055"))
 
     def test_junk_ignored(self):
-        for junk in ["", "hello", "X:1:dev", "M:1,2", "M:1,2:", ":::"]:
+        for junk in ["", "hello", "Z:1:dev", "M:1,2", "M:1,2:", ":::"]:
             self.assertIsNone(ar.parse_packet(junk), junk)
+
+    def test_disconnect_packet(self):
+        pkt = ar.parse_packet("X:bye:dev1")
+        self.assertIsNotNone(pkt)
+        self.assertEqual(pkt.cmd, "X")
+        self.assertEqual(pkt.dev_id, "dev1")
 
     def test_text_roundtrip_matches_android_escaping(self):
         for original in ["hello", "https://google.com", "a\\b", "line1\nline2", "c:\\temp\\x:y", "emoji 😀 ok"]:

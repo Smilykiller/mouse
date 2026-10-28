@@ -10,6 +10,40 @@ namespace AirGlideDesktop
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr OpenInputDesktop(uint dwFlags, bool fInherit, uint dwDesiredAccess);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetThreadDesktop(IntPtr hDesktop);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool CloseDesktop(IntPtr hDesktop);
+
+        [ThreadStatic]
+        private static bool t_desktopAttached;
+
+        public static void EnsureInputDesktop()
+        {
+            if (t_desktopAttached) return;
+            try
+            {
+                // Attach the calling thread to the user's active input desktop (WinSta0\Default)
+                IntPtr hDesk = OpenInputDesktop(0, false, 0x01FF);
+                if (hDesk != IntPtr.Zero)
+                {
+                    if (SetThreadDesktop(hDesk))
+                    {
+                        t_desktopAttached = true;
+                    }
+                    CloseDesktop(hDesk);
+                }
+            }
+            catch { }
+        }
+
         private const uint INPUT_MOUSE = 0;
         private const uint INPUT_KEYBOARD = 1;
 
@@ -109,6 +143,7 @@ namespace AirGlideDesktop
 
         private static void SendMouse(uint flags, int dx, int dy, uint data)
         {
+            EnsureInputDesktop();
             INPUT input = new INPUT();
             input.type = INPUT_MOUSE;
             input.u.mi = new MOUSEINPUT
@@ -120,7 +155,12 @@ namespace AirGlideDesktop
                 time = 0,
                 dwExtraInfo = UIntPtr.Zero
             };
-            SendInput(1, new INPUT[] { input }, InputSize);
+            uint result = SendInput(1, new INPUT[] { input }, InputSize);
+            if (result == 0)
+            {
+                // Fallback to Win32 mouse_event
+                mouse_event(flags, dx, dy, data, UIntPtr.Zero);
+            }
         }
 
         private static INPUT KeyInput(ushort vk, ushort scan, uint flags)

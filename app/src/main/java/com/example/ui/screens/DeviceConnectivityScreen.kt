@@ -63,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -99,6 +100,7 @@ fun DeviceConnectivityScreen(
     onSelectHostActiveDevice: (String) -> Unit,
     onOpenCompanionScript: () -> Unit,
     onRefreshHardware: () -> Unit,
+    onDisconnect: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BackHandler { onBack() }
@@ -226,18 +228,43 @@ fun DeviceConnectivityScreen(
                             )
                         }
 
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = ElevatedSurface,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "${state.packetsSent} pkts",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = WhitePrimary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = ElevatedSurface,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
+                            ) {
+                                Text(
+                                    text = "${state.packetsSent} pkts",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = WhitePrimary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+
+                            if (state.isLiveConnected || state.settings.targetHostIp.isNotBlank()) {
+                                Button(
+                                    onClick = onDisconnect,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF2D1414),
+                                        contentColor = Color(0xFFF87171)
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(28.dp)
+                                ) {
+                                    Text(
+                                        text = "Disconnect",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFF87171)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -348,25 +375,44 @@ fun DeviceConnectivityScreen(
                                         }
                                     }
 
-                                    Button(
-                                        onClick = {
-                                            inputIp = host.ipAddress
-                                            inputPort = host.port.toString()
-                                            onSelectDiscoveredHost(host)
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (isCurrent) DotGreenMild else WhitePrimary,
-                                            contentColor = TrueBlack
-                                        ),
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier.height(34.dp)
-                                    ) {
-                                        Text(
-                                            text = if (isCurrent) "Connected" else "Connect",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = TrueBlack
-                                        )
+                                    if (isCurrent) {
+                                        Button(
+                                            onClick = onDisconnect,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF2D1414),
+                                                contentColor = Color(0xFFF87171)
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.height(34.dp)
+                                        ) {
+                                            Text(
+                                                text = "Disconnect",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFF87171)
+                                            )
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = {
+                                                inputIp = host.ipAddress
+                                                inputPort = host.port.toString()
+                                                onSelectDiscoveredHost(host)
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = WhitePrimary,
+                                                contentColor = TrueBlack
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.height(34.dp)
+                                        ) {
+                                            Text(
+                                                text = "Connect",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TrueBlack
+                                            )
+                                        }
                                     }
                                 }
                             }

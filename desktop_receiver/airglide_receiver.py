@@ -34,7 +34,7 @@ import time
 
 DEFAULT_PORT = 5055
 DISCOVERY_PORT = 5056
-VALID_COMMANDS = frozenset("MCDUSKTP")
+VALID_COMMANDS = frozenset("MCDUSKTPX")
 CONTROLLER_TIMEOUT = 10.0      # seconds of silence before another phone may take over
 IS_WINDOWS = platform.system() == "Windows"
 
@@ -233,10 +233,24 @@ class WindowsInput:
         self.user32 = ctypes.windll.user32
         self.user32.SendInput.argtypes = (ctypes.c_uint, ctypes.POINTER(INPUT), ctypes.c_int)
         self.user32.SendInput.restype = ctypes.c_uint
+        self._ensure_desktop()
+
+    def _ensure_desktop(self):
+        try:
+            h_desk = self.user32.OpenInputDesktop(0, False, 0x01FF)
+            if h_desk:
+                self.user32.SetThreadDesktop(h_desk)
+                self.user32.CloseDesktop(h_desk)
+        except Exception:
+            pass
 
     def _send(self, *items):
         arr = (INPUT * len(items))(*items)
-        self.user32.SendInput(len(items), arr, ctypes.sizeof(INPUT))
+        ret = self.user32.SendInput(len(items), arr, ctypes.sizeof(INPUT))
+        if ret == 0:
+            self._ensure_desktop()
+            ret = self.user32.SendInput(len(items), arr, ctypes.sizeof(INPUT))
+        return ret
 
     @staticmethod
     def _mouse(flags, dx=0, dy=0, data=0):
@@ -253,7 +267,11 @@ class WindowsInput:
         return i
 
     def move(self, dx, dy):
-        self._send(self._mouse(self.MOVE, int(dx), int(dy)))
+        if self._send(self._mouse(self.MOVE, int(dx), int(dy))) == 0:
+            try:
+                self.user32.mouse_event(self.MOVE, int(dx), int(dy), 0, 0)
+            except Exception:
+                pass
 
     def button(self, btn, down):
         d, u = self.BUTTONS.get(btn, self.BUTTONS["L"])
@@ -449,6 +467,13 @@ class ReceiverEngine:
             self._reply("AIRGLIDE_ACK:%s:%d" % (self.host, self.port), addr)
             return
 
+        if pkt.cmd == "X":
+            old_name = self.lock.name or pkt.dev_id
+            self.lock.release()
+            self._reply("AIRGLIDE_DISCONNECTED:%s:%d" % (self.host, self.port), addr)
+            self.log("Phone disconnected: %s (%s)" % (old_name, addr[0]))
+            return
+
         self.dispatch(pkt)
 
     def _reply(self, text, addr):
@@ -554,8 +579,8 @@ def run_gui(engine, backend_name):
                 messagebox.showerror("AirGlide", "Cannot listen on UDP port %d:\n%s" % (engine.port, exc))
 
     toggle_btn.configure(command=toggle)
-    tk.Button(bottom, text="Release phone", relief="flat", bg=card, fg="#A1A1AA", padx=10, pady=4,
-              command=engine.lock.release).pack(side="left", padx=8)
+    tk.Button(bottom, text="Disconnect Phone", relief="flat", bg="#2D1414", fg="#F87171", padx=10, pady=4,
+              font=("Segoe UI", 9, "bold"), command=engine.lock.release).pack(side="left", padx=8)
     tk.Button(bottom, text="Clear log", relief="flat", bg=card, fg="#A1A1AA", padx=10, pady=4,
               command=lambda: log_list.delete(0, tk.END)).pack(side="left")
 

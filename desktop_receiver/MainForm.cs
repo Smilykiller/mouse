@@ -291,15 +291,21 @@ namespace AirGlideDesktop
 
             Button btnRelease = new Button
             {
-                Text = "Release Phone",
-                Size = new Size(110, 38),
+                Text = "Disconnect Phone",
+                Size = new Size(130, 38),
                 Location = new Point(420, 6),
-                BackColor = ColorBorder,
-                ForeColor = ColorTextPrimary,
-                FlatStyle = FlatStyle.Flat
+                BackColor = Color.FromArgb(45, 20, 20),
+                ForeColor = Color.FromArgb(248, 113, 113),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold)
             };
-            btnRelease.FlatAppearance.BorderSize = 0;
-            btnRelease.Click += (s, e) => _engine.ReleaseController();
+            btnRelease.FlatAppearance.BorderSize = 1;
+            btnRelease.FlatAppearance.BorderColor = Color.FromArgb(127, 29, 29);
+            btnRelease.Click += (s, e) =>
+            {
+                _engine.ReleaseController();
+                UpdateUiFromState();
+            };
 
             pnlActions.Controls.Add(_btnToggleServer);
             pnlActions.Controls.Add(_btnMinimizeTray);

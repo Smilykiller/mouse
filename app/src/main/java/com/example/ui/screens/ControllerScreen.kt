@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +74,7 @@ fun ControllerScreen(
     onSendText: (String) -> Unit,
     onKeyboardTextChange: (String) -> Unit,
     onToggleKeyboard: () -> Unit,
+    onDisconnect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     BackHandler { onBackToHub() }
@@ -92,7 +95,7 @@ fun ControllerScreen(
                 .animateContentSize(animationSpec = tween(250)),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Minimal Header: Back Button, Connection Status Pill, Keyboard Button
+            // Minimal Header: Back Button, Connection Status Pill, Actions (Keyboard & Disconnect)
             Surface(
                 color = DarkSurface,
                 shape = RoundedCornerShape(12.dp),
@@ -161,20 +164,40 @@ fun ControllerScreen(
                         }
                     }
 
-                    // 3. Button for Keyboard
-                    IconButton(
-                        onClick = onToggleKeyboard,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isKbOpen) ElevatedSurface else CardDark)
-                            .testTag("controller_keyboard_button")
+                    // 3. Right Action Buttons: Keyboard + Disconnect
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Keyboard,
-                            contentDescription = "Toggle Keyboard",
-                            tint = WhitePrimary
-                        )
+                        IconButton(
+                            onClick = onToggleKeyboard,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isKbOpen) ElevatedSurface else CardDark)
+                                .testTag("controller_keyboard_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Keyboard,
+                                contentDescription = "Toggle Keyboard",
+                                tint = WhitePrimary
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onDisconnect,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF2D1414))
+                                .testTag("controller_disconnect_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Disconnect Device",
+                                tint = Color(0xFFF87171)
+                            )
+                        }
                     }
                 }
             }

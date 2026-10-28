@@ -151,6 +151,7 @@ namespace AirGlideDesktop
 
         private void ListenLoop()
         {
+            NativeInput.EnsureInputDesktop();
             while (IsRunning)
             {
                 UdpClient? listener = _listener;
@@ -201,6 +202,14 @@ namespace AirGlideDesktop
                 return;
             }
 
+            if (cmd == "X")
+            {
+                ReleaseController();
+                Reply($"AIRGLIDE_DISCONNECTED:{HostName}", sender);
+                OnLog?.Invoke($"Phone disconnected ({sender.Address})");
+                return;
+            }
+
             Dispatch(cmd, payload);
         }
 
@@ -217,7 +226,7 @@ namespace AirGlideDesktop
             int first = msg.IndexOf(':');
             if (first != 1) return false;                 // commands are exactly one letter
             cmd = msg.Substring(0, 1);
-            if ("MCDUSKTP".IndexOf(cmd[0]) < 0) return false;
+            if ("MCDUSKTPX".IndexOf(cmd[0]) < 0) return false;
 
             string rest = msg.Substring(first + 1);
 

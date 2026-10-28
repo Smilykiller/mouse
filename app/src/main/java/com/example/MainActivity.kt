@@ -139,6 +139,7 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                         onUpdateAirMotionSensitivity = { s -> viewModel.updateAirMotionSensitivity(s) },
                         onToggleVolumeButtons = { viewModel.toggleVolumeButtons() },
                         onConnectToDiscoveredHost = { host -> viewModel.connectToDiscoveredHost(host) },
+                        onDisconnect = { viewModel.disconnectFromDevice() },
                         onLayoutChange = { l -> viewModel.setLayout(l) },
                         onRoleChange = { r -> viewModel.setRole(r) }
                     )
@@ -158,7 +159,8 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                             onKeyPress = { key -> viewModel.onKeyPress(key) },
                             onSendText = { text -> viewModel.onTextEntered(text) },
                             onKeyboardTextChange = { text -> viewModel.setKeyboardText(text) },
-                            onToggleKeyboard = { viewModel.toggleKeyboard() }
+                            onToggleKeyboard = { viewModel.toggleKeyboard() },
+                            onDisconnect = { viewModel.disconnectFromDevice() }
                         )
                     } else {
                         HostReceiverScreen(
@@ -179,6 +181,7 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                         onSelectDiscoveredHost = { host ->
                             viewModel.connectToDiscoveredHost(host)
                         },
+                        onDisconnect = { viewModel.disconnectFromDevice() },
                         onSelectHistoryDevice = { historyItem ->
                             viewModel.setTargetHostIp(historyItem.ipAddress, historyItem.name)
                             viewModel.setTargetPort(historyItem.port)

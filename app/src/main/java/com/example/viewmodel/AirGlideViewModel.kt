@@ -386,6 +386,27 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun disconnectFromDevice() {
+        if (_uiState.value.settings.hapticFeedback) {
+            haptics.heavyClick()
+        }
+        udpClient.sendCommand(RemoteCommand.Disconnect)
+        manualTarget = true
+        sharedPrefs.edit()
+            .putString("target_ip", "")
+            .putBoolean("manual_target", true)
+            .apply()
+        _uiState.update {
+            it.copy(
+                isLiveConnected = false,
+                activeHostName = "Disconnected",
+                settings = it.settings.copy(targetHostIp = "")
+            )
+        }
+        udpClient.clearTarget()
+        navigateTo(AppScreen.HUB_SETTINGS)
+    }
+
     fun triggerDiscoveryScan() {
         discoveryManager.triggerScan()
     }

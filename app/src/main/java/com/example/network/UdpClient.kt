@@ -125,11 +125,20 @@ class UdpClient(
         }
     }
 
+    fun clearTarget() {
+        targetAddress = null
+        lastAckMs = 0L
+        heartbeatJob?.cancel()
+    }
+
     fun configureTarget(hostIp: String, port: Int) {
         scope.launch(Dispatchers.IO) {
             try {
                 val cleanIp = hostIp.trim()
-                if (cleanIp.isEmpty()) return@launch
+                if (cleanIp.isEmpty()) {
+                    clearTarget()
+                    return@launch
+                }
                 val resolved = InetAddress.getByName(cleanIp)
                 val changed = resolved.hostAddress != targetAddress?.hostAddress || port != targetPort
                 targetPort = port

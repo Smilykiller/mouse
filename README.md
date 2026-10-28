@@ -1,60 +1,44 @@
-# AirGlide - Ultra-Low Latency Wireless Remote & Touchpad
+# AirGlide – phone as a wireless mouse (fixed version)
 
-AirGlide transforms your Android phone or tablet into a sub-millisecond wireless mouse, adaptive touchpad, presentation remote, and remote keyboard for your laptop or desktop over local Wi-Fi or mobile hotspot.
+## What was wrong (and is fixed here)
 
----
+| # | Problem | Effect |
+|---|---------|--------|
+| 1 | **Every receiver broadcast its beacon to its own port 5055, received it, and treated "5055" as the phone's ID – then ignored the real phone.** | Phone says "Streaming", packet counter rises, **cursor never moves** |
+| 2 | Laptop IP = first adapter found (often VirtualBox/WSL/VPN); phone trusted that advertised IP | Phone connected to an unreachable address |
+| 3 | Beacon sent only via `255.255.255.255` | Reached only one network adapter |
+| 4 | "Live/Connected" status was guessed from beacons only | Misleading status. Now the laptop answers each heartbeat (`AIRGLIDE_ACK`) |
+| 5 | Auto-connect overwrote an IP you typed manually | Fixed – manual choice is kept |
+| 6 | Keys (Enter/Backspace/arrows) used `SendKeys` from a background thread; text escaping mismatch; `keybd_event` unicode | Special keys/typing failed. Now `SendInput` everywhere |
+| 7 | Scroll strip far too fast (×0.25), two-finger scroll advertised but missing | Fixed (×0.05, two-finger scroll + long-press = right click) |
+| 8 | Android build blockers: missing `ic_airglide_logo.jpg`, missing `android.useAndroidX=true`, unused Firebase/Room/Moshi/Retrofit, bleeding-edge AGP 9 / Gradle 9 | Removed/pinned to stable AGP 8.7.3, Gradle 8.9, Kotlin 2.0.21 |
+| 9 | Node.js "receiver" only printed to the console | Removed |
 
-## 🚀 Quick Start: Running on Laptop & Phone
+## 1. Laptop (Windows)
 
-### 1. Laptop Setup (Separate Desktop Version)
-Navigate to the `desktop_receiver` folder:
-```
-d:\zentry_hub_projects\app_development\mouse\desktop_receiver\
-```
+**Easiest – Python** (no compiler):
+1. Install Python 3 from python.org (tick *Add to PATH*).
+2. Double-click `Start_Laptop_Receiver.bat` (or `python desktop_receiver\airglide_receiver.py`).
+3. If Windows asks about the firewall → **Allow** (Private + Public). If the phone still can't connect, run `Fix_Firewall.bat`.
 
-* **Option A (Instant 1-Click Launch - Recommended):**
-  * Double-click **`Start_AirGlide_Laptop.bat`** (or run `publish\AirGlideDesktop.exe`).
-  * The modern dark-themed GUI will open, displaying your laptop's IP address (e.g. `192.168.1.34:5055`) and start broadcasting the **Auto-Discovery Beacon**.
-* **Option B (Permanent Desktop Shortcut):**
-  * Double-click **`Install_Laptop_App.bat`** to generate a desktop shortcut and configure firewall rules.
-* **Option C (Cross-Platform Python GUI - macOS/Linux/Windows):**
-  * Run `py airglide_desktop_gui.py` or `python airglide_desktop_gui.py`.
+macOS/Linux: `pip install pynput`, then `python3 desktop_receiver/airglide_receiver.py`.
 
----
+**Native exe (optional):** install the .NET 8 SDK, then in `desktop_receiver`: `dotnet publish -c Release -r win-x64 --self-contained -o publish`.
 
-### 2. Mobile App Setup (Android)
-* Open this root project folder in **Android Studio**.
-* Connect your Android phone via USB/Wi-Fi or start an emulator.
-* Click **Run (Shift + F10)**.
-* **Auto-Discovery:** When the app opens, it automatically detects your running laptop receiver!
-  * Tap **Connect** on the detected laptop badge.
-  * You're connected! Swipe on the touchpad, use twin click buttons, or wave your phone in the air with the Gyro Air-Mouse.
+## 2. Phone (Android)
+1. Android Studio → **File ▸ Open** → this folder (the one with `settings.gradle.kts`). Accept SDK/Gradle downloads, wait for sync.
+2. Plug in the phone (USB debugging) → **Run ▸**.
+3. Phone and laptop on the **same Wi-Fi** (or laptop on the phone's hotspot).
 
----
+## 3. Reading the status pill
+* **Live** (green) – laptop answered. Everything works.
+* **No reply** (amber) – packets are sent but the laptop doesn't answer: receiver not running, wrong IP, firewall, or the router blocks device-to-device traffic ("AP/client isolation", common on guest/public Wi-Fi – use your phone's hotspot instead).
+* **No Wi-Fi** (red) – phone has no local network.
 
-## 🛠️ Key Bug Fixes & Architecture Improvements
+Tip: if auto-discovery fails, type the IP shown in the receiver window into **Connect** in the app.
 
-1. **High-Frequency UDP Coroutine Thrashing Fixed:**
-   * *Previous bug:* Launching 120 coroutines/sec on `Dispatchers.IO` for every pointer move caused packet reordering and cursor jitter.
-   * *Fix:* Implemented a single sequential Kotlin `Channel<String>` worker loop ensuring strict FIFO delivery and 0ms latency.
-2. **Auto-Discovery Beaconing (Zero-Configuration Pairing):**
-   * *Previous limitation:* Users were forced to manually hunt down their laptop IPv4 address and type it into the phone.
-   * *Fix:* The laptop desktop receiver continuously broadcasts `AIRGLIDE_BEACON`. The mobile app automatically discovers it and auto-connects with 1 tap.
-3. **Scroll Wheel Delta Truncation Fixed:**
-   * *Previous bug:* Slow drags on the scroll strip resulted in small fractional deltas (e.g. `0.4f`) that evaluated to `0.toInt()`, causing slow scrolls to be completely ignored.
-   * *Fix:* Added an accumulator pipeline so fractional distances smoothly build into discrete scroll clicks without lost steps.
-4. **Gyroscope Air-Mouse & Drift Elimination:**
-   * *Previous bug:* Raw accelerometer had a 9.8 m/s² gravity vector that caused the cursor to slide endlessly off screen when tilted.
-   * *Fix:* Switched to true angular velocity from `Sensor.TYPE_GYROSCOPE` (with resting deadzone and center calibration), matching commercial motion remotes.
-5. **Drag-Lock Desynchronization Fixed:**
-   * *Previous bug:* Clicking while Drag Lock was active broke Windows drag state without updating the UI state.
-   * *Fix:* Synchronized mouse up/down triggers so tapping Left Click during Drag Lock smoothly releases the item.
-6. **Physical Volume Rocker HUD Suppressed:**
-   * *Previous bug:* Pressing volume buttons on some Android devices triggered the system volume slider dialog.
-   * *Fix:* Intercepted both `onKeyDown` and `onKeyUp` returning `true` to cleanly suppress OS volume changes.
-7. **Accurate Live Connection Status:**
-   * *Previous bug:* Showed green "Connected" even when target laptop was off.
-   * *Fix:* Green "Live Connected" only shows when live heartbeats/beacons are received from the laptop within the last 6 seconds.
-8. **Built-in Debug Keystore Build Error Fixed:**
-   * *Previous bug:* `app/build.gradle.kts` referenced a missing `debug.keystore`, failing local debug builds.
-   * *Fix:* Added file existence guard to fall back safely to Android's default debug keystore.
+## Notes
+* Only one phone controls the PC at a time (stops strangers on shared Wi-Fi). The lock frees after 10 s of silence, or press **Release phone**.
+* Traffic is unencrypted UDP on your LAN – use trusted networks.
+* Windows cannot let a normal program control elevated windows (Task Manager, UAC prompts) unless the receiver runs as Administrator.
+* Python tests: `cd desktop_receiver && python -m unittest discover -s tests -v`.

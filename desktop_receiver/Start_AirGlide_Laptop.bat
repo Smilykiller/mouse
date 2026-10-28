@@ -2,42 +2,27 @@
 title AirGlide Laptop Receiver
 cd /d "%~dp0"
 
-echo ========================================================
-echo        AirGlide Laptop Receiver Launcher
-echo ========================================================
-echo.
-
 if exist "%~dp0AirGlideDesktop.exe" (
-    echo Starting AirGlide Native Standalone Application...
     start "" "%~dp0AirGlideDesktop.exe"
     exit /b 0
 )
-
-if exist "%~dp0dist\AirGlideDesktop.exe" (
-    echo Starting AirGlide from dist...
-    start "" "%~dp0dist\AirGlideDesktop.exe"
-    exit /b 0
-)
-
 if exist "%~dp0publish\AirGlideDesktop.exe" (
-    echo Starting AirGlide from publish...
-    cd /d "%~dp0publish"
-    start "" "AirGlideDesktop.exe"
+    start "" "%~dp0publish\AirGlideDesktop.exe"
     exit /b 0
 )
 
-echo Starting AirGlide Python GUI fallback...
 where py >nul 2>nul
 if %ERRORLEVEL% equ 0 (
-    start "" py "%~dp0airglide_desktop_gui.py"
-    exit /b 0
+    py "%~dp0airglide_receiver.py"
+    goto :done
 )
-
 where python >nul 2>nul
 if %ERRORLEVEL% equ 0 (
-    start "" python "%~dp0airglide_desktop_gui.py"
-    exit /b 0
+    python "%~dp0airglide_receiver.py"
+    goto :done
 )
 
-echo [ERROR] Could not start AirGlide. Please double-click AirGlideDesktop.exe directly.
+echo [ERROR] Python is not installed. Install it from https://www.python.org/downloads/
+echo         (tick "Add python.exe to PATH"), then double-click this file again.
+:done
 pause

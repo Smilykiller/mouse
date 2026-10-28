@@ -47,7 +47,7 @@ sealed class RemoteCommand {
             is Scroll -> "S:${Math.round(delta)}:$deviceId"
             is Key -> "K:$keyName:$deviceId"
             is Text -> "T:${content.replace("\\", "\\\\").replace(":", "\\:").replace("\n", "\\n")}:$deviceId"
-            is Presence -> "P:$deviceId:$deviceName"
+            is Presence -> "P:$deviceId:${deviceName.replace(":", "-")}"
         }
     }
 }

@@ -123,7 +123,7 @@ fun ControllerScreen(
                     // 2. True Connection Status Pill
                     val (dotColor, statusTitle, statusSub) = when {
                         state.isLiveConnected -> Triple(DotGreenMild, "Live", state.activeHostName)
-                        state.isLocalNetworkActive -> Triple(DotAmberMild, "Streaming", state.settings.targetHostIp)
+                        state.isLocalNetworkActive -> Triple(DotAmberMild, "No reply", state.settings.targetHostIp)
                         else -> Triple(DotRedMild, "No Wi-Fi", "")
                     }
 
@@ -196,6 +196,7 @@ fun ControllerScreen(
                             onTap = onLeftClick,
                             onDoubleTap = onLeftClick,
                             onLongPress = onRightClick,
+                            onScroll = onScroll,
                             label = if (isKbOpen) "TOUCHPAD" else "TOUCHPAD SURFACE (SWIPE TO MOVE)",
                             modifier = Modifier
                                 .weight(1f)
@@ -228,6 +229,7 @@ fun ControllerScreen(
                         onTap = onLeftClick,
                         onDoubleTap = onLeftClick,
                         onLongPress = onRightClick,
+                        onScroll = onScroll,
                         label = if (isKbOpen) "TRACKPAD" else "EXPANSIVE LAPTOP TRACKPAD",
                         modifier = Modifier
                             .fillMaxWidth()
@@ -257,6 +259,7 @@ fun ControllerScreen(
                             onTap = onLeftClick,
                             onDoubleTap = onLeftClick,
                             onLongPress = onRightClick,
+                            onScroll = onScroll,
                             label = if (isKbOpen) "GESTURE PAD" else "FULL GESTURE SURFACE (TAP = CLICK)",
                             modifier = Modifier.fillMaxSize()
                         )

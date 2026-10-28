@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -15,43 +16,55 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
 
+/**
+ * Finds laptops running the AirGlide receiver.
+ *
+ *  - The receiver broadcasts "AIRGLIDE_BEACON:<host>:<ip>:<port>" to UDP port 5056.
+ *  - We also broadcast "AIRGLIDE_DISCOVERY_PING" to port 5055; the receiver answers
+ *    with "AIRGLIDE_SERVER_OFFER:<host>:<ip>:<port>" straight to our socket.
+ *
+ * IMPORTANT: the laptop's address is always taken from the packet's real source
+ * address, never from the text inside the packet. The advertised text can name a
+ * virtual adapter (VirtualBox / WSL / VPN) that the phone cannot reach.
+ */
 class NetworkDiscoveryManager(
     private val context: Context,
     private val scope: CoroutineScope
 ) {
     private val tag = "AirGlideDiscovery"
-    private val _discoveredHosts = MutableStateFlow<List<DiscoveredHost>>(emptyList())
-    val discoveredHosts = _discoveredHosts.asStateFlow()
 
-    private var listenJob: Job? = null
-    private var pingJob: Job? = null
+    private val _discoveredHosts = MutableStateFlow<List<DiscoveredHost>>(emptyList())
+    val discoveredHosts: StateFlow<List<DiscoveredHost>> = _discoveredHosts.asStateFlow()
+
+    private var mainJob: Job? = null
+
+    @Volatile
     private var socket: DatagramSocket? = null
 
     fun start() {
-        if (listenJob?.isActive == true) return
+        if (mainJob?.isActive == true) return
         NetworkUtils.acquireMulticastLock(context)
 
-        listenJob = scope.launch(Dispatchers.IO) {
-            try {
-                // Try binding to discovery port 5056 or ephemeral
-                socket = try {
-                    DatagramSocket(null).apply {
-                        reuseAddress = true
-                        broadcast = true
-                        bind(InetSocketAddress(5056))
-                    }
-                } catch (_: Exception) {
-                    DatagramSocket().apply { broadcast = true }
+        mainJob = scope.launch(Dispatchers.IO) {
+            val s = openSocket()
+            socket = s
+
+            // Periodic ping + removal of laptops that stopped answering.
+            launch {
+                while (isActive) {
+                    sendDiscoveryPing()
+                    cleanStaleHosts()
+                    delay(3000)
                 }
+            }
 
-                val buffer = ByteArray(1024)
-                while (isActive && socket?.isClosed == false) {
+            val buffer = ByteArray(1024)
+            try {
+                while (isActive && !s.isClosed) {
                     val packet = DatagramPacket(buffer, buffer.size)
-                    socket?.receive(packet)
-
+                    s.receive(packet) // blocks; stop() closes the socket to unblock it
                     val msg = String(packet.data, 0, packet.length, Charsets.UTF_8).trim()
-                    val senderIp = packet.address.hostAddress ?: ""
-
+                    val senderIp = packet.address?.hostAddress ?: ""
                     processDiscoveryMessage(msg, senderIp)
                 }
             } catch (e: Exception) {
@@ -60,14 +73,18 @@ class NetworkDiscoveryManager(
                 }
             }
         }
+    }
 
-        // Periodic ping + cleanup of stale hosts
-        pingJob = scope.launch(Dispatchers.IO) {
-            while (isActive) {
-                sendDiscoveryPing()
-                cleanStaleHosts()
-                delay(3000)
+    private fun openSocket(): DatagramSocket {
+        return try {
+            DatagramSocket(null).apply {
+                reuseAddress = true
+                broadcast = true
+                bind(InetSocketAddress(DISCOVERY_PORT))
             }
+        } catch (_: Exception) {
+            // Port 5056 busy: still fine, ping/offer replies reach this ephemeral socket.
+            DatagramSocket().apply { broadcast = true }
         }
     }
 
@@ -78,66 +95,68 @@ class NetworkDiscoveryManager(
     }
 
     private fun sendDiscoveryPing() {
-        try {
-            val broadcastAddr = NetworkUtils.getBroadcastAddress()
-            val pingMsg = "AIRGLIDE_DISCOVERY_PING".toByteArray(Charsets.UTF_8)
-            val packet = DatagramPacket(pingMsg, pingMsg.size, broadcastAddr, 5055)
-
-            // Send via existing or temporary socket
-            val s = socket ?: DatagramSocket().also { it.broadcast = true }
-            s.send(packet)
-        } catch (e: Exception) {
-            Log.d(tag, "Ping error: ${e.message}")
+        val s = socket ?: return
+        val pingMsg = "AIRGLIDE_DISCOVERY_PING".toByteArray(Charsets.UTF_8)
+        for (address in NetworkUtils.getBroadcastAddresses()) {
+            try {
+                s.send(DatagramPacket(pingMsg, pingMsg.size, address, DEFAULT_PORT))
+            } catch (e: Exception) {
+                Log.d(tag, "Ping to $address failed: ${e.message}")
+            }
         }
     }
 
     private fun processDiscoveryMessage(msg: String, senderIp: String) {
-        // Expected formats:
-        // AIRGLIDE_BEACON:<hostname>:<ip>:<port>
-        // AIRGLIDE_SERVER_OFFER:<hostname>:<ip>:<port>
-        if (msg.startsWith("AIRGLIDE_BEACON:") || msg.startsWith("AIRGLIDE_SERVER_OFFER:")) {
-            val parts = msg.split(":")
-            if (parts.size >= 4) {
-                val hostName = parts[1]
-                val ip = if (parts[2].isNotBlank() && parts[2] != "127.0.0.1") parts[2] else senderIp
-                val port = parts[3].toIntOrNull() ?: 5055
+        if (senderIp.isBlank()) return
+        if (!msg.startsWith("AIRGLIDE_BEACON:") && !msg.startsWith("AIRGLIDE_SERVER_OFFER:")) return
 
-                val host = DiscoveredHost(
-                    hostName = hostName,
-                    ipAddress = ip,
-                    port = port,
-                    lastSeenMs = System.currentTimeMillis()
-                )
+        val parts = msg.split(":")
+        if (parts.size < 4) return
 
-                val current = _discoveredHosts.value.toMutableList()
-                val existingIndex = current.indexOfFirst { it.ipAddress == ip && it.port == port }
-                if (existingIndex >= 0) {
-                    current[existingIndex] = host
-                } else {
-                    current.add(0, host)
-                }
-                _discoveredHosts.value = current
-                Log.i(tag, "Discovered AirGlide Host: $hostName ($ip:$port)")
-            }
+        val hostName = parts[1].ifBlank { "Laptop" }
+        val port = parts.last().toIntOrNull() ?: DEFAULT_PORT
+
+        val host = DiscoveredHost(
+            hostName = hostName,
+            ipAddress = senderIp,
+            port = port,
+            lastSeenMs = System.currentTimeMillis()
+        )
+
+        val current = _discoveredHosts.value.toMutableList()
+        val existingIndex = current.indexOfFirst { it.ipAddress == senderIp && it.port == port }
+        if (existingIndex >= 0) {
+            current[existingIndex] = host
+        } else {
+            current.add(host)
+            Log.i(tag, "Discovered AirGlide host: $hostName ($senderIp:$port)")
         }
+        _discoveredHosts.value = current
     }
 
     private fun cleanStaleHosts() {
         val now = System.currentTimeMillis()
         val current = _discoveredHosts.value
-        val fresh = current.filter { (now - it.lastSeenMs) < 12000 }
+        val fresh = current.filter { (now - it.lastSeenMs) < STALE_AFTER_MS }
         if (fresh.size != current.size) {
             _discoveredHosts.value = fresh
         }
     }
 
     fun stop() {
-        pingJob?.cancel()
-        listenJob?.cancel()
+        mainJob?.cancel()
+        mainJob = null
         try {
             socket?.close()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         socket = null
         NetworkUtils.releaseMulticastLock()
+    }
+
+    private companion object {
+        const val DEFAULT_PORT = 5055
+        const val DISCOVERY_PORT = 5056
+        const val STALE_AFTER_MS = 8000L
     }
 }

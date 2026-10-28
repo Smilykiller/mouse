@@ -44,15 +44,13 @@ namespace AirGlideDesktop
             _engine.OnLog += msg =>
             {
                 Console.WriteLine($"[SYS] {msg}");
-                Console.Out.Flush();
                 AppendLogSafe($"[SYS] {msg}");
             };
             _engine.OnPacketProcessed += (cmd, detail) =>
             {
-                Console.WriteLine($"[{cmd}] {detail}");
-                Console.Out.Flush();
-                if (cmd != "MOVE") // Don't spam UI list with 120Hz moves
+                if (cmd != "MOVE") // Don't spam the console / UI list with 120Hz moves
                 {
+                    Console.WriteLine($"[{cmd}] {detail}");
                     AppendLogSafe($"[{cmd}] {detail}");
                 }
             };
@@ -291,9 +289,22 @@ namespace AirGlideDesktop
             btnClearLog.FlatAppearance.BorderSize = 0;
             btnClearLog.Click += (s, e) => _lstLogs.Items.Clear();
 
+            Button btnRelease = new Button
+            {
+                Text = "Release Phone",
+                Size = new Size(110, 38),
+                Location = new Point(420, 6),
+                BackColor = ColorBorder,
+                ForeColor = ColorTextPrimary,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnRelease.FlatAppearance.BorderSize = 0;
+            btnRelease.Click += (s, e) => _engine.ReleaseController();
+
             pnlActions.Controls.Add(_btnToggleServer);
             pnlActions.Controls.Add(_btnMinimizeTray);
             pnlActions.Controls.Add(btnClearLog);
+            pnlActions.Controls.Add(btnRelease);
             mainPanel.Controls.Add(pnlActions, 0, 4);
 
             this.Controls.Add(mainPanel);
@@ -353,7 +364,8 @@ namespace AirGlideDesktop
         {
             if (this.InvokeRequired)
             {
-                this.BeginInvoke(new Action(UpdateUiFromState));
+                if (!this.IsHandleCreated || this.IsDisposed) return;
+                try { this.BeginInvoke(new Action(UpdateUiFromState)); } catch (InvalidOperationException) { }
                 return;
             }
 
@@ -400,7 +412,8 @@ namespace AirGlideDesktop
 
             if (_lstLogs.InvokeRequired)
             {
-                _lstLogs.BeginInvoke(new Action(() => AppendLogSafe(text)));
+                if (!_lstLogs.IsHandleCreated) return;
+                try { _lstLogs.BeginInvoke(new Action(() => AppendLogSafe(text))); } catch (InvalidOperationException) { }
                 return;
             }
 

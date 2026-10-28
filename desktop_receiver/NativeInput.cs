@@ -1,16 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
 
 namespace AirGlideDesktop
 {
+    /// <summary>Mouse / keyboard injection through the Win32 SendInput API (works from any thread).</summary>
     public static class NativeInput
     {
         [DllImport("user32.dll", SetLastError = true)]
-        private static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
-
-        [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+        private const uint INPUT_MOUSE = 0;
+        private const uint INPUT_KEYBOARD = 1;
 
         private const uint MOUSEEVENTF_MOVE = 0x0001;
         private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
@@ -21,26 +22,26 @@ namespace AirGlideDesktop
         private const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
         private const uint MOUSEEVENTF_WHEEL = 0x0800;
 
-        private const int INPUT_KEYBOARD = 1;
+        private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
         private const uint KEYEVENTF_KEYUP = 0x0002;
         private const uint KEYEVENTF_UNICODE = 0x0004;
+
+        private const ushort VK_RETURN = 0x0D;
+        private const ushort VK_TAB = 0x09;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct INPUT
         {
-            public int type;
+            public uint type;
             public InputUnion u;
         }
 
         [StructLayout(LayoutKind.Explicit)]
         private struct InputUnion
         {
-            [FieldOffset(0)]
-            public MOUSEINPUT mi;
-            [FieldOffset(0)]
-            public KEYBDINPUT ki;
-            [FieldOffset(0)]
-            public HARDWAREINPUT hi;
+            [FieldOffset(0)] public MOUSEINPUT mi;
+            [FieldOffset(0)] public KEYBDINPUT ki;
+            [FieldOffset(0)] public HARDWAREINPUT hi;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -72,102 +73,133 @@ namespace AirGlideDesktop
             public ushort wParamH;
         }
 
+        private static readonly int InputSize = Marshal.SizeOf(typeof(INPUT));
+
+        private static readonly Dictionary<string, ushort> VkMap =
+            new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["ENTER"] = 0x0D,
+                ["BACKSPACE"] = 0x08,
+                ["BKSP"] = 0x08,
+                ["TAB"] = 0x09,
+                ["SPACE"] = 0x20,
+                ["ESC"] = 0x1B,
+                ["ESCAPE"] = 0x1B,
+                ["UP"] = 0x26,
+                ["DOWN"] = 0x28,
+                ["LEFT"] = 0x25,
+                ["RIGHT"] = 0x27,
+                ["HOME"] = 0x24,
+                ["END"] = 0x23,
+                ["PAGE_UP"] = 0x21,
+                ["PAGEUP"] = 0x21,
+                ["PGUP"] = 0x21,
+                ["PAGE_DOWN"] = 0x22,
+                ["PAGEDOWN"] = 0x22,
+                ["PGDN"] = 0x22,
+                ["DELETE"] = 0x2E,
+                ["DEL"] = 0x2E
+            };
+
+        // Navigation keys must carry the "extended" flag, otherwise Windows may treat them as numpad keys.
+        private static bool IsExtended(ushort vk)
+        {
+            return vk >= 0x21 && vk <= 0x28 || vk == 0x2E;
+        }
+
+        private static void SendMouse(uint flags, int dx, int dy, uint data)
+        {
+            INPUT input = new INPUT();
+            input.type = INPUT_MOUSE;
+            input.u.mi = new MOUSEINPUT
+            {
+                dx = dx,
+                dy = dy,
+                mouseData = data,
+                dwFlags = flags,
+                time = 0,
+                dwExtraInfo = UIntPtr.Zero
+            };
+            SendInput(1, new INPUT[] { input }, InputSize);
+        }
+
+        private static INPUT KeyInput(ushort vk, ushort scan, uint flags)
+        {
+            INPUT input = new INPUT();
+            input.type = INPUT_KEYBOARD;
+            input.u.ki = new KEYBDINPUT
+            {
+                wVk = vk,
+                wScan = scan,
+                dwFlags = flags,
+                time = 0,
+                dwExtraInfo = UIntPtr.Zero
+            };
+            return input;
+        }
+
+        private static void SendVirtualKey(ushort vk)
+        {
+            uint ext = IsExtended(vk) ? KEYEVENTF_EXTENDEDKEY : 0;
+            INPUT[] inputs = new INPUT[]
+            {
+                KeyInput(vk, 0, ext),
+                KeyInput(vk, 0, ext | KEYEVENTF_KEYUP)
+            };
+            SendInput((uint)inputs.Length, inputs, InputSize);
+        }
+
         public static void Move(int dx, int dy)
         {
-            try
-            {
-                INPUT[] inputs = new INPUT[1];
-                inputs[0].type = 0; // INPUT_MOUSE
-                inputs[0].u.mi = new MOUSEINPUT
-                {
-                    dx = dx,
-                    dy = dy,
-                    mouseData = 0,
-                    dwFlags = MOUSEEVENTF_MOVE,
-                    time = 0,
-                    dwExtraInfo = UIntPtr.Zero
-                };
-                if (SendInput(1, inputs, Marshal.SizeOf(typeof(INPUT))) == 0)
-                {
-                    mouse_event(MOUSEEVENTF_MOVE, dx, dy, 0, UIntPtr.Zero);
-                }
-            }
-            catch
-            {
-                mouse_event(MOUSEEVENTF_MOVE, dx, dy, 0, UIntPtr.Zero);
-            }
+            SendMouse(MOUSEEVENTF_MOVE, dx, dy, 0);
         }
 
         public static void LeftClick()
         {
-            mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
-            mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
+            MouseDown("L");
+            MouseUp("L");
         }
 
         public static void RightClick()
         {
-            mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, UIntPtr.Zero);
-            mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, UIntPtr.Zero);
+            MouseDown("R");
+            MouseUp("R");
         }
 
         public static void MiddleClick()
         {
-            mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0, 0, UIntPtr.Zero);
-            mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, UIntPtr.Zero);
+            MouseDown("M");
+            MouseUp("M");
         }
 
         public static void MouseDown(string btn)
         {
-            if (btn == "R") mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, UIntPtr.Zero);
-            else if (btn == "M") mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0, 0, UIntPtr.Zero);
-            else mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
+            uint flag = btn == "R" ? MOUSEEVENTF_RIGHTDOWN : btn == "M" ? MOUSEEVENTF_MIDDLEDOWN : MOUSEEVENTF_LEFTDOWN;
+            SendMouse(flag, 0, 0, 0);
         }
 
         public static void MouseUp(string btn)
         {
-            if (btn == "R") mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, UIntPtr.Zero);
-            else if (btn == "M") mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, UIntPtr.Zero);
-            else mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
+            uint flag = btn == "R" ? MOUSEEVENTF_RIGHTUP : btn == "M" ? MOUSEEVENTF_MIDDLEUP : MOUSEEVENTF_LEFTUP;
+            SendMouse(flag, 0, 0, 0);
         }
 
-        public static void Scroll(int delta)
+        /// <summary>Positive = wheel up, negative = wheel down (one notch = 120 units).</summary>
+        public static void Scroll(int notches)
         {
-            uint wheelDelta = unchecked((uint)(delta * 120));
-            mouse_event(MOUSEEVENTF_WHEEL, 0, 0, wheelDelta, UIntPtr.Zero);
+            SendMouse(MOUSEEVENTF_WHEEL, 0, 0, unchecked((uint)(notches * 120)));
         }
 
         public static void KeyPress(string keyName)
         {
-            string k = keyName.ToUpperInvariant().Trim();
-            string? sendKeyStr = k switch
+            string k = keyName.Trim();
+            if (VkMap.TryGetValue(k, out ushort vk))
             {
-                "PAGE_UP" or "PAGEUP" or "PGUP" => "{PGUP}",
-                "PAGE_DOWN" or "PAGEDOWN" or "PGDN" => "{PGDN}",
-                "ENTER" => "{ENTER}",
-                "BACKSPACE" or "BKSP" => "{BACKSPACE}",
-                "TAB" => "{TAB}",
-                "SPACE" => " ",
-                "ESC" or "ESCAPE" => "{ESC}",
-                "UP" => "{UP}",
-                "DOWN" => "{DOWN}",
-                "LEFT" => "{LEFT}",
-                "RIGHT" => "{RIGHT}",
-                "HOME" => "{HOME}",
-                "END" => "{END}",
-                _ => null
-            };
-
-            if (sendKeyStr != null)
-            {
-                try
-                {
-                    SendKeys.SendWait(sendKeyStr);
-                }
-                catch { }
+                SendVirtualKey(vk);
             }
             else if (k.Length == 1)
             {
-                TypeText(k);
+                TypeText(k.ToLowerInvariant());
             }
         }
 
@@ -175,27 +207,30 @@ namespace AirGlideDesktop
         {
             if (string.IsNullOrEmpty(text)) return;
 
-            INPUT[] inputs = new INPUT[text.Length * 2];
-            int idx = 0;
-
+            List<INPUT> inputs = new List<INPUT>();
             foreach (char c in text)
             {
-                // Key down
-                inputs[idx].type = INPUT_KEYBOARD;
-                inputs[idx].u.ki.wVk = 0;
-                inputs[idx].u.ki.wScan = c;
-                inputs[idx].u.ki.dwFlags = KEYEVENTF_UNICODE;
-                idx++;
-
-                // Key up
-                inputs[idx].type = INPUT_KEYBOARD;
-                inputs[idx].u.ki.wVk = 0;
-                inputs[idx].u.ki.wScan = c;
-                inputs[idx].u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
-                idx++;
+                if (c == '\n')
+                {
+                    inputs.Add(KeyInput(VK_RETURN, 0, 0));
+                    inputs.Add(KeyInput(VK_RETURN, 0, KEYEVENTF_KEYUP));
+                }
+                else if (c == '\t')
+                {
+                    inputs.Add(KeyInput(VK_TAB, 0, 0));
+                    inputs.Add(KeyInput(VK_TAB, 0, KEYEVENTF_KEYUP));
+                }
+                else
+                {
+                    inputs.Add(KeyInput(0, c, KEYEVENTF_UNICODE));
+                    inputs.Add(KeyInput(0, c, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP));
+                }
             }
 
-            SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
+            if (inputs.Count > 0)
+            {
+                SendInput((uint)inputs.Count, inputs.ToArray(), InputSize);
+            }
         }
     }
 }

@@ -22,6 +22,7 @@ import com.example.network.UdpClient
 import com.example.network.UdpHostServer
 import com.example.sensor.AirMotionSensorManager
 import com.example.util.HapticFeedbackHelper
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,6 +64,9 @@ data class AirGlideUiState(
     val isHostRunning: Boolean = false
 )
 
+/** The laptop counts as "live" when we heard from it within this window. */
+private const val LIVE_WINDOW_MS = 6000L
+
 class AirGlideViewModel(application: Application) : AndroidViewModel(application) {
 
     private val sharedPrefs = application.getSharedPreferences("airglide_prefs", Context.MODE_PRIVATE)
@@ -77,6 +81,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
     private val udpHostServer: UdpHostServer
 
     private var scrollAccumulator: Float = 0f
+    private var manualTarget: Boolean = false
     private var moveAccumulatorX: Float = 0f
     private var moveAccumulatorY: Float = 0f
 
@@ -95,6 +100,8 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         val savedIp = sharedPrefs.getString("target_ip", "") ?: ""
         val savedPort = sharedPrefs.getInt("target_port", 5055)
         val savedSensitivity = sharedPrefs.getFloat("sensitivity", 1.3f)
+        val savedScrollSensitivity = sharedPrefs.getFloat("scroll_sensitivity", 1.0f)
+        manualTarget = sharedPrefs.getBoolean("manual_target", false)
         val savedInvertScroll = sharedPrefs.getBoolean("invert_scroll", false)
         val savedHaptics = sharedPrefs.getBoolean("haptics", true)
         val savedLayoutName = sharedPrefs.getString("layout", TouchpadLayout.SPLIT.name)
@@ -111,6 +118,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
             targetHostIp = defaultTargetIp,
             targetPort = savedPort,
             sensitivity = savedSensitivity,
+            scrollSensitivity = savedScrollSensitivity,
             invertScroll = savedInvertScroll,
             hapticFeedback = savedHaptics
         )
@@ -140,30 +148,28 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         // Start Auto-Discovery listener
         discoveryManager.start()
 
-        // Observe discovered laptop beacons
+        // Observe discovered laptops
         viewModelScope.launch {
             discoveryManager.discoveredHosts.collect { hosts ->
-                val currentTarget = _uiState.value.settings.targetHostIp
-                val isLive = hosts.any { it.ipAddress == currentTarget && (System.currentTimeMillis() - it.lastSeenMs) < 6000 }
-                val activeName = hosts.find { it.ipAddress == currentTarget }?.hostName ?: "Laptop"
-
-                // Auto-connect to detected laptop if current target is not active
-                if (hosts.isNotEmpty()) {
-                    val matchingHost = hosts.find { it.ipAddress == currentTarget }
-                    if (matchingHost == null || !isLive) {
-                        val firstHost = hosts.first()
-                        setTargetHostIp(firstHost.ipAddress, firstHost.hostName)
-                        setTargetPort(firstHost.port)
+                // Auto-connect ONLY if the user has not typed / picked an address themselves.
+                if (!manualTarget && hosts.isNotEmpty()) {
+                    val currentTarget = _uiState.value.settings.targetHostIp
+                    val targetSeen = hosts.any { it.ipAddress == currentTarget }
+                    if (!targetSeen) {
+                        val first = hosts.first()
+                        applyTarget(first.ipAddress, first.port, first.hostName, manual = false)
                     }
                 }
+                _uiState.update { it.copy(discoveredHosts = hosts) }
+                refreshLiveStatus()
+            }
+        }
 
-                _uiState.update {
-                    it.copy(
-                        discoveredHosts = hosts,
-                        isLiveConnected = isLive,
-                        activeHostName = activeName
-                    )
-                }
+        // Re-evaluate "live" every second, so it also turns off when the laptop goes silent.
+        viewModelScope.launch {
+            while (true) {
+                refreshLiveStatus()
+                delay(1000)
             }
         }
 
@@ -250,7 +256,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         val settings = _uiState.value.settings
         val inverted = if (settings.invertScroll) -1f else 1f
         // Accumulate fractional drag distance to prevent slow scrolls from being truncated to 0
-        scrollAccumulator += rawDy * settings.scrollSensitivity * inverted * 0.25f
+        scrollAccumulator += rawDy * settings.scrollSensitivity * inverted * 0.05f
 
         val steps = scrollAccumulator.toInt()
         if (steps != 0) {
@@ -327,34 +333,54 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(isKeyboardOpen = !it.isKeyboardOpen) }
     }
 
-    fun setTargetHostIp(ip: String, optionalName: String? = null) {
+    private fun applyTarget(ip: String, port: Int, name: String?, manual: Boolean) {
         val cleanIp = ip.trim()
         val hosts = _uiState.value.discoveredHosts
-        val matchedName = optionalName ?: hosts.find { it.ipAddress == cleanIp }?.hostName ?: "Laptop"
+        val matchedName = name ?: hosts.find { it.ipAddress == cleanIp }?.hostName ?: "Laptop"
 
+        manualTarget = manual
         _uiState.update {
             it.copy(
-                settings = it.settings.copy(targetHostIp = cleanIp),
-                activeHostName = matchedName
+                settings = it.settings.copy(targetHostIp = cleanIp, targetPort = port),
+                activeHostName = matchedName,
+                isLiveConnected = false
             )
         }
-        sharedPrefs.edit().putString("target_ip", cleanIp).apply()
-        udpClient.configureTarget(cleanIp, _uiState.value.settings.targetPort)
+        sharedPrefs.edit()
+            .putString("target_ip", cleanIp)
+            .putInt("target_port", port)
+            .putBoolean("manual_target", manual)
+            .apply()
+        udpClient.configureTarget(cleanIp, port)
+        saveToDeviceHistory(cleanIp, port, matchedName)
+    }
 
-        saveToDeviceHistory(cleanIp, _uiState.value.settings.targetPort, matchedName)
+    fun setTargetHostIp(ip: String, optionalName: String? = null, manual: Boolean = true) {
+        applyTarget(ip, _uiState.value.settings.targetPort, optionalName, manual)
     }
 
     fun setTargetPort(port: Int) {
-        _uiState.update {
-            it.copy(settings = it.settings.copy(targetPort = port))
+        val state = _uiState.value
+        applyTarget(state.settings.targetHostIp, port, state.activeHostName, manualTarget)
+    }
+
+    private fun refreshLiveStatus() {
+        val now = System.currentTimeMillis()
+        val state = _uiState.value
+        val target = state.settings.targetHostIp
+        val seenHost = state.discoveredHosts.firstOrNull { it.ipAddress == target }
+        val beaconLive = seenHost != null && (now - seenHost.lastSeenMs) < LIVE_WINDOW_MS
+        val lastAck = udpClient.lastAckMs
+        val ackLive = lastAck != 0L && (now - lastAck) < LIVE_WINDOW_MS
+        val live = beaconLive || ackLive
+        val name = seenHost?.hostName ?: state.activeHostName
+        if (state.isLiveConnected != live || state.activeHostName != name) {
+            _uiState.update { it.copy(isLiveConnected = live, activeHostName = name) }
         }
-        sharedPrefs.edit().putInt("target_port", port).apply()
-        udpClient.configureTarget(_uiState.value.settings.targetHostIp, port)
     }
 
     fun connectToDiscoveredHost(host: DiscoveredHost) {
-        setTargetHostIp(host.ipAddress, host.hostName)
-        setTargetPort(host.port)
+        applyTarget(host.ipAddress, host.port, host.hostName, manual = false)
         if (_uiState.value.settings.hapticFeedback) {
             haptics.click()
         }

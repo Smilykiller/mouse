@@ -71,8 +71,7 @@ fun DesktopScriptDialog(
     var selectedTab by remember { mutableIntStateOf(0) }
     val scripts = listOf(
         "Windows (Zero Install)" to DesktopScriptGenerator.windowsPowerShellScript,
-        "Python 3 (All OS)" to DesktopScriptGenerator.pythonReceiverScript,
-        "Node.js" to DesktopScriptGenerator.nodeReceiverScript
+        "Python 3 (All OS)" to DesktopScriptGenerator.pythonReceiverScript
     )
 
     Dialog(

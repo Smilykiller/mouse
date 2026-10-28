@@ -1,6 +1,0 @@
-{
-  "summary":  "Implementation plan for AirGlide: an ultra-low latency, unidirectional cross-platform remote mouse, touchpad, and keyboard controller for Android, featuring auto-adaptive layouts, UDP & Bluetooth HID transport, multi-device arbitration, and a bundled desktop companion receiver.",
-  "updatedAt":  "2026-10-25T13:39:50.990380309Z",
-  "requestFeedback":  true,
-  "userFacing":  true
-}

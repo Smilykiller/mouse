@@ -22,15 +22,21 @@ debug.keystore
 bin/
 obj/
 publish/
+dist/
 desktop_receiver/bin/
 desktop_receiver/obj/
 desktop_receiver/publish/
+desktop_receiver/dist/
 .vs/
 *.user
+*.pdb
 
 # Python caches
 __pycache__/
 *.pyc
+
+# AI Studio scaffolding
+.aistudio/
 
 # Large binary distributions (exceeds GitHub 100MB limit)
 *.exe

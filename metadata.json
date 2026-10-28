@@ -1,6 +1,0 @@
-{
-  "name": "AirGlide",
-  "description": "Ultra-low latency wireless mouse, touchpad, and remote keyboard with adaptive screen layouts, multi-device arbitration, and unidirectional security.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

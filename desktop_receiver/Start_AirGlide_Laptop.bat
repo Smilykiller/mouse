@@ -2,12 +2,12 @@
 title AirGlide Laptop Receiver
 cd /d "%~dp0"
 
-if exist "%~dp0AirGlideDesktop.exe" (
-    start "" "%~dp0AirGlideDesktop.exe"
+if exist "%~dp0..\AirGlide_Laptop_Receiver.exe" (
+    start "" "%~dp0..\AirGlide_Laptop_Receiver.exe"
     exit /b 0
 )
-if exist "%~dp0publish\AirGlideDesktop.exe" (
-    start "" "%~dp0publish\AirGlideDesktop.exe"
+if exist "%LOCALAPPDATA%\AirGlide\AirGlide.exe" (
+    start "" "%LOCALAPPDATA%\AirGlide\AirGlide.exe"
     exit /b 0
 )
 
@@ -22,7 +22,7 @@ if %ERRORLEVEL% equ 0 (
     goto :done
 )
 
-echo [ERROR] Python is not installed. Install it from https://www.python.org/downloads/
-echo         (tick "Add python.exe to PATH"), then double-click this file again.
+echo [ERROR] AirGlide executable not found and Python is not installed.
+echo         Please run Install_AirGlide_Windows.bat or install Python.
 :done
 pause

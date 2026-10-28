@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace AirGlideDesktop
@@ -18,7 +19,8 @@ namespace AirGlideDesktop
         private Panel _pnlHeroStatus = null!;
         private Label _lblHeroTitle = null!;
         private Label _lblHeroDesc = null!;
-        private Button _btnDisconnect = null!;
+        private Button _btnDisconnectPhone = null!;
+        private Button _btnToggleServer = null!;
 
         private Label _lblIpDisplay = null!;
         private Button _btnCopyIp = null!;
@@ -244,16 +246,14 @@ namespace AirGlideDesktop
             _pnlHeroStatus.Margin = new Padding(0, 0, 0, 14);
             _pnlHeroStatus.Padding = new Padding(20, 16, 20, 16);
 
-            TableLayoutPanel inner = new TableLayoutPanel
+            FlowLayoutPanel inner = new FlowLayoutPanel
             {
                 Dock = DockStyle.Top,
                 AutoSize = true,
-                ColumnCount = 2,
-                RowCount = 2,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
                 BackColor = CardBg
             };
-            inner.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75f));
-            inner.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
 
             _lblHeroTitle = new Label
             {
@@ -270,32 +270,78 @@ namespace AirGlideDesktop
                 Font = new Font("Segoe UI", 9.5f, FontStyle.Regular),
                 ForeColor = TextSecondary,
                 AutoSize = true,
+                Margin = new Padding(0, 0, 0, 12)
+            };
+
+            FlowLayoutPanel btnRow = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true,
+                BackColor = CardBg,
                 Margin = new Padding(0)
             };
 
-            _btnDisconnect = new Button
+            _btnDisconnectPhone = new Button
             {
-                Text = "Disconnect Phone",
-                Size = new Size(130, 38),
-                BackColor = Color.FromArgb(55, 20, 20),
+                Text = "⏹ Disconnect Phone",
+                AutoSize = true,
+                Height = 38,
+                Padding = new Padding(16, 0, 16, 0),
+                BackColor = Color.FromArgb(60, 20, 20),
                 ForeColor = Color.FromArgb(248, 113, 113),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-                Anchor = AnchorStyles.Right,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Margin = new Padding(0, 0, 10, 0),
                 Visible = false
             };
-            _btnDisconnect.FlatAppearance.BorderSize = 1;
-            _btnDisconnect.FlatAppearance.BorderColor = Color.FromArgb(140, 30, 30);
-            _btnDisconnect.Click += (s, e) =>
+            _btnDisconnectPhone.FlatAppearance.BorderSize = 1;
+            _btnDisconnectPhone.FlatAppearance.BorderColor = Color.FromArgb(180, 50, 50);
+            _btnDisconnectPhone.Click += (s, e) =>
             {
                 _engine.ReleaseController();
+                AppendLogSafe("Phone disconnected by user.");
                 UpdateUiFromState();
             };
 
-            inner.Controls.Add(_lblHeroTitle, 0, 0);
-            inner.Controls.Add(_btnDisconnect, 1, 0);
-            inner.Controls.Add(_lblHeroDesc, 0, 1);
-            inner.SetColumnSpan(_lblHeroDesc, 2);
+            _btnToggleServer = new Button
+            {
+                Text = "⏹ Stop Server / Turn Off",
+                AutoSize = true,
+                Height = 38,
+                Padding = new Padding(16, 0, 16, 0),
+                BackColor = Color.FromArgb(50, 18, 18),
+                ForeColor = Color.FromArgb(248, 113, 113),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Margin = new Padding(0, 0, 10, 0)
+            };
+            _btnToggleServer.FlatAppearance.BorderSize = 1;
+            _btnToggleServer.FlatAppearance.BorderColor = Color.FromArgb(140, 35, 35);
+            _btnToggleServer.Click += (s, e) =>
+            {
+                if (_engine.IsRunning)
+                {
+                    _engine.ReleaseController();
+                    _engine.Stop();
+                    AppendLogSafe("Receiver stopped by user (Turned off).");
+                }
+                else
+                {
+                    _engine.Start();
+                    AppendLogSafe("Receiver started by user (Listening).");
+                }
+                UpdateUiFromState();
+            };
+
+            btnRow.Controls.Add(_btnDisconnectPhone);
+            btnRow.Controls.Add(_btnToggleServer);
+
+            inner.Controls.Add(_lblHeroTitle);
+            inner.Controls.Add(_lblHeroDesc);
+            inner.Controls.Add(btnRow);
 
             _pnlHeroStatus.Controls.Add(inner);
             return _pnlHeroStatus;
@@ -647,15 +693,40 @@ namespace AirGlideDesktop
             return card;
         }
 
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
         private void SetupTrayMenu()
         {
             _trayMenu = new ContextMenuStrip();
             _trayMenu.Items.Add("Open AirGlide Remote", null, (s, e) => RestoreWindow());
             _trayMenu.Items.Add("-");
-            _trayMenu.Items.Add("Exit AirGlide", null, (s, e) =>
+            _trayMenu.Items.Add("Stop Server / Disconnect", null, (s, e) =>
             {
+                _engine.ReleaseController();
                 _engine.Stop();
+                AppendLogSafe("Receiver stopped from tray menu.");
+                UpdateUiFromState();
+            });
+            _trayMenu.Items.Add("Start Server", null, (s, e) =>
+            {
+                _engine.Start();
+                AppendLogSafe("Receiver started from tray menu.");
+                UpdateUiFromState();
+            });
+            _trayMenu.Items.Add("-");
+            _trayMenu.Items.Add("Exit AirGlide (Quit)", null, (s, e) =>
+            {
+                _refreshTimer?.Stop();
+                _engine?.Stop();
+                if (_trayIcon != null)
+                {
+                    _trayIcon.Visible = false;
+                    _trayIcon.Dispose();
+                }
                 Application.Exit();
+                Environment.Exit(0);
             });
 
             _trayIcon = new NotifyIcon
@@ -668,12 +739,24 @@ namespace AirGlideDesktop
             _trayIcon.DoubleClick += (s, e) => RestoreWindow();
         }
 
-        private void RestoreWindow()
+        public void RestoreWindow()
         {
-            this.Show();
-            this.WindowState = FormWindowState.Normal;
+            if (this.InvokeRequired)
+            {
+                if (!this.IsHandleCreated || this.IsDisposed) return;
+                try { this.BeginInvoke(new Action(RestoreWindow)); } catch { }
+                return;
+            }
+
+            if (!this.Visible) this.Show();
+            if (this.WindowState == FormWindowState.Minimized)
+            {
+                this.WindowState = FormWindowState.Normal;
+            }
             this.ShowInTaskbar = true;
             this.BringToFront();
+            this.Activate();
+            try { SetForegroundWindow(this.Handle); } catch { }
         }
 
         private void UpdateUiFromState()
@@ -687,38 +770,58 @@ namespace AirGlideDesktop
 
             if (_engine.IsRunning)
             {
+                _lblStatusBadge.BackColor = Color.FromArgb(16, 45, 28);
                 _lblStatusBadge.ForeColor = AccentGreen;
-                _lblStatusBadge.Text = $"● READY (Port {_engine.Port})";
+                _lblStatusBadge.Text = $"● RUNNING (Port {_engine.Port})";
+
+                _btnToggleServer.Text = "⏹ Stop Server / Turn Off";
+                _btnToggleServer.BackColor = Color.FromArgb(50, 18, 18);
+                _btnToggleServer.ForeColor = Color.FromArgb(248, 113, 113);
+                _btnToggleServer.FlatAppearance.BorderColor = Color.FromArgb(140, 35, 35);
+
+                _lblIpDisplay.Text = $"{_engine.LocalIp}  (Port {_engine.Port})";
+
+                if (_engine.ActiveDeviceId != null && _engine.Devices.TryGetValue(_engine.ActiveDeviceId, out var dev))
+                {
+                    _lblHeroTitle.Text = $"🟢 Phone Connected: {dev.Name}";
+                    _lblHeroTitle.ForeColor = AccentGreen;
+                    _lblHeroDesc.Text = $"{dev.PacketCount} packets received • Your phone is controlling this laptop.";
+                    _btnDisconnectPhone.Visible = true;
+                }
+                else if (_engine.Devices.Count > 0)
+                {
+                    var first = _engine.Devices.Values.First();
+                    _lblHeroTitle.Text = $"🟢 Phone Connected: {first.Name}";
+                    _lblHeroTitle.ForeColor = AccentGreen;
+                    _lblHeroDesc.Text = $"{_engine.TotalPackets} packets received • Your phone is controlling this laptop.";
+                    _btnDisconnectPhone.Visible = true;
+                }
+                else
+                {
+                    _lblHeroTitle.Text = "🟢 Ready to Connect";
+                    _lblHeroTitle.ForeColor = AccentGreen;
+                    _lblHeroDesc.Text = "Open the AirGlide app on your phone. It connects automatically over Wi-Fi.";
+                    _btnDisconnectPhone.Visible = false;
+                }
             }
             else
             {
+                _lblStatusBadge.BackColor = Color.FromArgb(50, 18, 18);
                 _lblStatusBadge.ForeColor = AccentRed;
-                _lblStatusBadge.Text = "● PAUSED";
-            }
+                _lblStatusBadge.Text = "● STOPPED (Disconnected)";
 
-            _lblIpDisplay.Text = $"{_engine.LocalIp}  (Port {_engine.Port})";
+                _lblHeroTitle.Text = "🔴 Receiver Stopped / Disconnected";
+                _lblHeroTitle.ForeColor = AccentRed;
+                _lblHeroDesc.Text = "Receiver is turned off. Zero battery is being used. Click 'Start Server' when you are ready to connect.";
 
-            if (_engine.ActiveDeviceId != null && _engine.Devices.TryGetValue(_engine.ActiveDeviceId, out var dev))
-            {
-                _lblHeroTitle.Text = $"🟢 Phone Connected: {dev.Name}";
-                _lblHeroTitle.ForeColor = AccentGreen;
-                _lblHeroDesc.Text = $"{dev.PacketCount} packets received • Your phone is now controlling this laptop.";
-                _btnDisconnect.Visible = true;
-            }
-            else if (_engine.Devices.Count > 0)
-            {
-                var first = _engine.Devices.Values.First();
-                _lblHeroTitle.Text = $"🟢 Phone Connected: {first.Name}";
-                _lblHeroTitle.ForeColor = AccentGreen;
-                _lblHeroDesc.Text = $"{_engine.TotalPackets} packets received • Your phone is now controlling this laptop.";
-                _btnDisconnect.Visible = true;
-            }
-            else
-            {
-                _lblHeroTitle.Text = "🟢 Ready to Connect";
-                _lblHeroTitle.ForeColor = AccentGreen;
-                _lblHeroDesc.Text = "Open the AirGlide app on your phone. It connects automatically over Wi-Fi.";
-                _btnDisconnect.Visible = false;
+                _btnDisconnectPhone.Visible = false;
+
+                _btnToggleServer.Text = "▶ Start Server (Turn On)";
+                _btnToggleServer.BackColor = Color.FromArgb(16, 45, 28);
+                _btnToggleServer.ForeColor = Color.FromArgb(74, 222, 128);
+                _btnToggleServer.FlatAppearance.BorderColor = Color.FromArgb(34, 197, 94);
+
+                _lblIpDisplay.Text = $"{_engine.LocalIp}  (Offline)";
             }
         }
 
@@ -741,17 +844,20 @@ namespace AirGlideDesktop
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            if (e.CloseReason == CloseReason.UserClosing)
-            {
-                e.Cancel = true;
-                this.Hide();
-                _trayIcon.ShowBalloonTip(1500, "AirGlide Remote", "Running in background. Double-click tray icon to open.", ToolTipIcon.Info);
-                return;
-            }
             _refreshTimer?.Stop();
             _engine?.Stop();
-            _trayIcon?.Dispose();
+            if (_trayIcon != null)
+            {
+                _trayIcon.Visible = false;
+                _trayIcon.Dispose();
+            }
             base.OnFormClosing(e);
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            base.OnFormClosed(e);
+            Environment.Exit(0);
         }
     }
 }

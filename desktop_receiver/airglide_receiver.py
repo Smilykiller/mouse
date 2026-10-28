@@ -541,10 +541,17 @@ def run_gui(engine, backend_name):
 
     bg, card, border = "#09090B", "#18181B", "#2E2E33"
     root = tk.Tk()
-    root.title("AirGlide Desktop Receiver")
+    root.title("AirGlide Remote")
     root.geometry("640x560")
     root.minsize(540, 480)
     root.configure(bg=bg)
+
+    ico_path = os.path.join(os.path.dirname(__file__), "Resources", "app_icon.ico")
+    if os.path.exists(ico_path):
+        try:
+            root.iconbitmap(ico_path)
+        except Exception:
+            pass
 
     header = tk.Frame(root, bg=bg)
     header.pack(fill="x", padx=18, pady=(16, 8))

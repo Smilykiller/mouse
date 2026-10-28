@@ -295,7 +295,12 @@ class WindowsInput:
         vk = self.VK.get(name)
         if vk is not None:
             flags = self.EXTENDED if vk in self.EXTENDED_KEYS else 0
-            self._send(self._key(vk, 0, flags), self._key(vk, 0, flags | self.KEYUP))
+            if self._send(self._key(vk, 0, flags), self._key(vk, 0, flags | self.KEYUP)) == 0:
+                try:
+                    self.user32.keybd_event(vk, 0, flags, 0)
+                    self.user32.keybd_event(vk, 0, flags | self.KEYUP, 0)
+                except Exception:
+                    pass
         elif len(name) == 1:
             self.text(name.lower())
 
@@ -309,8 +314,19 @@ class WindowsInput:
                 data = ch.encode("utf-16-le")
                 for i in range(0, len(data), 2):
                     unit = data[i] | (data[i + 1] << 8)
-                    self._send(self._key(0, unit, self.UNICODE),
-                               self._key(0, unit, self.UNICODE | self.KEYUP))
+                    if self._send(self._key(0, unit, self.UNICODE),
+                                  self._key(0, unit, self.UNICODE | self.KEYUP)) == 0:
+                        try:
+                            scan = self.user32.VkKeyScanW(ord(ch))
+                            if scan != -1:
+                                vk = scan & 0xFF
+                                shift = bool(scan & 0x0100)
+                                if shift: self.user32.keybd_event(0x10, 0, 0, 0)
+                                self.user32.keybd_event(vk, 0, 0, 0)
+                                self.user32.keybd_event(vk, 0, self.KEYUP, 0)
+                                if shift: self.user32.keybd_event(0x10, 0, self.KEYUP, 0)
+                        except Exception:
+                            pass
 
 
 class PynputInput:

@@ -44,16 +44,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.KeyboardCatalog
@@ -68,9 +70,6 @@ import com.example.ui.theme.GrayMuted
 import com.example.ui.theme.GraySecondary
 import com.example.ui.theme.TrueBlack
 import com.example.ui.theme.WhitePrimary
-
-// Invisible sentinel character ensures Android software keyboard (IME) never blocks backspace
-private const val LIVE_SENTINEL = "\uFEFF"
 
 @Composable
 fun RemoteKeyboardBar(
@@ -87,12 +86,8 @@ fun RemoteKeyboardBar(
     val keyboardController = LocalSoftwareKeyboardController.current
     var showCustomizeDialog by remember { mutableStateOf(false) }
 
-    // Internal sentinel text field value for continuous backspace & live character dispatch
-    var sentinelFieldValue by remember {
-        mutableStateOf(TextFieldValue(LIVE_SENTINEL, TextRange(LIVE_SENTINEL.length)))
-    }
-    // Live visual stream log displayed to the user
-    var liveStreamPreview by remember { mutableStateOf("") }
+    // Live visible text buffer
+    var liveTextBuffer by remember { mutableStateOf("") }
 
     LaunchedEffect(isOpen) {
         if (isOpen) {
@@ -168,10 +163,10 @@ fun RemoteKeyboardBar(
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = CardDark,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
+                        border = androidx.compose.foundation.BorderStroke(1.2.dp, BorderHighlight),
                         modifier = Modifier
                             .height(74.dp)
-                            .width(44.dp)
+                            .width(46.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { showCustomizeDialog = true }
                             .testTag("open_key_customizer_button")
@@ -195,35 +190,26 @@ fun RemoteKeyboardBar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
-                        value = sentinelFieldValue,
+                        value = liveTextBuffer,
                         onValueChange = { incoming ->
-                            val currentText = sentinelFieldValue.text
-                            val newText = incoming.text
-
-                            if (newText.length < currentText.length) {
+                            if (incoming.length > liveTextBuffer.length) {
+                                // Live typing: send typed character(s) immediately over UDP to PC
+                                val added = if (incoming.startsWith(liveTextBuffer)) {
+                                    incoming.substring(liveTextBuffer.length)
+                                } else {
+                                    incoming
+                                }
+                                onSendText(added)
+                                liveTextBuffer = incoming
+                            } else if (incoming.length < liveTextBuffer.length) {
                                 // Direct Backspace on mobile keyboard
-                                val deletedCount = currentText.length - newText.length
+                                val deletedCount = liveTextBuffer.length - incoming.length
                                 repeat(deletedCount) {
                                     onKeyPress("BACKSPACE")
                                 }
-                                if (liveStreamPreview.isNotEmpty()) {
-                                    liveStreamPreview = liveStreamPreview.dropLast(
-                                        deletedCount.coerceAtMost(liveStreamPreview.length)
-                                    )
-                                }
-                                // Reset to sentinel buffer
-                                sentinelFieldValue = TextFieldValue(LIVE_SENTINEL, TextRange(LIVE_SENTINEL.length))
-                            } else if (newText.length > currentText.length) {
-                                // Direct character or word typed on mobile keyboard
-                                val rawTyped = newText.replace(LIVE_SENTINEL, "")
-                                if (rawTyped.isNotEmpty()) {
-                                    onSendText(rawTyped)
-                                    liveStreamPreview = (liveStreamPreview + rawTyped).takeLast(40)
-                                }
-                                // Reset to sentinel buffer
-                                sentinelFieldValue = TextFieldValue(LIVE_SENTINEL, TextRange(LIVE_SENTINEL.length))
+                                liveTextBuffer = incoming
                             } else {
-                                sentinelFieldValue = incoming
+                                liveTextBuffer = incoming
                             }
                         },
                         placeholder = {
@@ -236,21 +222,18 @@ fun RemoteKeyboardBar(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (liveStreamPreview.isNotBlank())
-                                        "Live: $liveStreamPreview"
-                                    else
-                                        "Live typing active • Type or use ⌫ / ↵",
+                                    text = "Live typing • ⌫ backspace • ↵ enter",
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace,
-                                    color = if (liveStreamPreview.isNotBlank()) WhitePrimary else GrayMuted
+                                    color = GrayMuted
                                 )
                             }
                         },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = DotGreenMild,
                             unfocusedBorderColor = BorderDark,
-                            focusedTextColor = Color.Transparent, // Sentinel is invisible
-                            unfocusedTextColor = Color.Transparent
+                            focusedTextColor = WhitePrimary,
+                            unfocusedTextColor = WhitePrimary
                         ),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
@@ -263,32 +246,59 @@ fun RemoteKeyboardBar(
                             onDone = {
                                 // Direct enter button on bottom-right of mobile keyboard
                                 onKeyPress("ENTER")
-                                liveStreamPreview = ""
+                                liveTextBuffer = ""
                             }
                         ),
                         modifier = Modifier
                             .weight(1f)
                             .focusRequester(focusRequester)
+                            .onPreviewKeyEvent { event ->
+                                if (event.type == KeyEventType.KeyDown && (event.key == Key.Backspace || event.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_DEL)) {
+                                    if (liveTextBuffer.isEmpty()) {
+                                        onKeyPress("BACKSPACE")
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                } else false
+                            }
                             .testTag("remote_text_field")
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Close Keyboard Button
+                    if (liveTextBuffer.isNotEmpty()) {
+                        IconButton(
+                            onClick = { liveTextBuffer = "" },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(CardDark)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear Input",
+                                tint = GraySecondary
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+
+                    // Hide Keyboard Button
                     IconButton(
                         onClick = {
                             keyboardController?.hide()
                             onClose()
                         },
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(40.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(CardDark)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close Keyboard",
-                            tint = GrayMuted
+                            imageVector = Icons.Default.Keyboard,
+                            contentDescription = "Hide Keyboard",
+                            tint = DotGreenMild
                         )
                     }
                 }

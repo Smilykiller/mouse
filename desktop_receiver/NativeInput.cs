@@ -14,6 +14,12 @@ namespace AirGlideDesktop
         private static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
 
         [DllImport("user32.dll", SetLastError = true)]
+        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+        [DllImport("user32.dll")]
+        private static extern short VkKeyScan(char ch);
+
+        [DllImport("user32.dll", SetLastError = true)]
         private static extern IntPtr OpenInputDesktop(uint dwFlags, bool fInherit, uint dwDesiredAccess);
 
         [DllImport("user32.dll", SetLastError = true)]
@@ -208,13 +214,19 @@ namespace AirGlideDesktop
 
         private static void SendVirtualKey(ushort vk)
         {
+            EnsureInputDesktop();
             uint ext = IsExtended(vk) ? KEYEVENTF_EXTENDEDKEY : 0;
             INPUT[] inputs = new INPUT[]
             {
                 KeyInput(vk, 0, ext),
                 KeyInput(vk, 0, ext | KEYEVENTF_KEYUP)
             };
-            SendInput((uint)inputs.Length, inputs, InputSize);
+            uint res = SendInput((uint)inputs.Length, inputs, InputSize);
+            if (res == 0)
+            {
+                keybd_event((byte)vk, 0, ext, UIntPtr.Zero);
+                keybd_event((byte)vk, 0, ext | KEYEVENTF_KEYUP, UIntPtr.Zero);
+            }
         }
 
         public static void Move(int dx, int dy)
@@ -274,6 +286,7 @@ namespace AirGlideDesktop
         public static void TypeText(string text)
         {
             if (string.IsNullOrEmpty(text)) return;
+            EnsureInputDesktop();
 
             List<INPUT> inputs = new List<INPUT>();
             foreach (char c in text)
@@ -297,7 +310,31 @@ namespace AirGlideDesktop
 
             if (inputs.Count > 0)
             {
-                SendInput((uint)inputs.Count, inputs.ToArray(), InputSize);
+                uint res = SendInput((uint)inputs.Count, inputs.ToArray(), InputSize);
+                if (res == 0)
+                {
+                    foreach (char c in text)
+                    {
+                        if (c == '\n')
+                        {
+                            keybd_event((byte)VK_RETURN, 0, 0, UIntPtr.Zero);
+                            keybd_event((byte)VK_RETURN, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                        }
+                        else
+                        {
+                            short scan = VkKeyScan(c);
+                            if (scan != -1)
+                            {
+                                byte vk = (byte)(scan & 0xFF);
+                                bool shift = (scan & 0x0100) != 0;
+                                if (shift) keybd_event(0x10, 0, 0, UIntPtr.Zero);
+                                keybd_event(vk, 0, 0, UIntPtr.Zero);
+                                keybd_event(vk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                                if (shift) keybd_event(0x10, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                            }
+                        }
+                    }
+                }
             }
         }
     }

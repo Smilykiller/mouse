@@ -113,12 +113,22 @@ namespace AirGlideDesktop
             new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase)
             {
                 ["ENTER"] = 0x0D,
+                ["RETURN"] = 0x0D,
                 ["BACKSPACE"] = 0x08,
                 ["BKSP"] = 0x08,
                 ["TAB"] = 0x09,
                 ["SPACE"] = 0x20,
                 ["ESC"] = 0x1B,
                 ["ESCAPE"] = 0x1B,
+                ["SHIFT"] = 0x10,
+                ["LSHIFT"] = 0xA0,
+                ["RSHIFT"] = 0xA1,
+                ["CTRL"] = 0x11,
+                ["CONTROL"] = 0x11,
+                ["ALT"] = 0x12,
+                ["WIN"] = 0x5B,
+                ["WINDOWS"] = 0x5B,
+                ["SUPER"] = 0x5B,
                 ["UP"] = 0x26,
                 ["DOWN"] = 0x28,
                 ["LEFT"] = 0x25,
@@ -132,13 +142,31 @@ namespace AirGlideDesktop
                 ["PAGEDOWN"] = 0x22,
                 ["PGDN"] = 0x22,
                 ["DELETE"] = 0x2E,
-                ["DEL"] = 0x2E
+                ["DEL"] = 0x2E,
+                ["INSERT"] = 0x2D,
+                ["INS"] = 0x2D,
+                ["CAPSLOCK"] = 0x14,
+                ["CAPS"] = 0x14,
+                ["PRINTSCREEN"] = 0x2C,
+                ["PRTSC"] = 0x2C,
+                ["F1"] = 0x70,
+                ["F2"] = 0x71,
+                ["F3"] = 0x72,
+                ["F4"] = 0x73,
+                ["F5"] = 0x74,
+                ["F6"] = 0x75,
+                ["F7"] = 0x76,
+                ["F8"] = 0x77,
+                ["F9"] = 0x78,
+                ["F10"] = 0x79,
+                ["F11"] = 0x7A,
+                ["F12"] = 0x7B
             };
 
         // Navigation keys must carry the "extended" flag, otherwise Windows may treat them as numpad keys.
         private static bool IsExtended(ushort vk)
         {
-            return vk >= 0x21 && vk <= 0x28 || vk == 0x2E;
+            return (vk >= 0x21 && vk <= 0x28) || vk == 0x2D || vk == 0x2E || vk == 0x5B || vk == 0x5C;
         }
 
         private static void SendMouse(uint flags, int dx, int dy, uint data)

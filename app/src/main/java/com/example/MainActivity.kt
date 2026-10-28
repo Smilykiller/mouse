@@ -160,7 +160,9 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                             onSendText = { text -> viewModel.onTextEntered(text) },
                             onKeyboardTextChange = { text -> viewModel.setKeyboardText(text) },
                             onToggleKeyboard = { viewModel.toggleKeyboard() },
-                            onDisconnect = { viewModel.disconnectFromDevice() }
+                            onDisconnect = { viewModel.disconnectFromDevice() },
+                            onUpdateQuickKeys = { keys -> viewModel.updateQuickKeys(keys) },
+                            onResetQuickKeys = { viewModel.resetQuickKeys() }
                         )
                     } else {
                         HostReceiverScreen(

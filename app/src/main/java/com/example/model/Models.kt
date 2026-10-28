@@ -87,3 +87,64 @@ data class AppSettings(
     val smoothCursor: Boolean = true,
     val activeDeviceId: String = ""
 )
+
+data class KeyItem(
+    val code: String,
+    val label: String,
+    val category: String = "Common"
+)
+
+object KeyboardCatalog {
+    val ALL_KEYS: List<KeyItem> = listOf(
+        // Modifiers & Controls
+        KeyItem("ESC", "ESC", "Controls"),
+        KeyItem("TAB", "TAB", "Controls"),
+        KeyItem("SHIFT", "SHIFT", "Controls"),
+        KeyItem("CTRL", "CTRL", "Controls"),
+        KeyItem("ALT", "ALT", "Controls"),
+        KeyItem("WIN", "WIN", "Controls"),
+        KeyItem("ENTER", "ENTER", "Controls"),
+        KeyItem("CAPSLOCK", "CAPS", "Controls"),
+
+        // Navigation
+        KeyItem("HOME", "HOME", "Navigation"),
+        KeyItem("END", "END", "Navigation"),
+        KeyItem("PAGE_UP", "PGUP", "Navigation"),
+        KeyItem("PAGE_DOWN", "PGDN", "Navigation"),
+        KeyItem("UP", "▲", "Navigation"),
+        KeyItem("DOWN", "▼", "Navigation"),
+        KeyItem("LEFT", "◄", "Navigation"),
+        KeyItem("RIGHT", "►", "Navigation"),
+
+        // Editing
+        KeyItem("DELETE", "DEL", "Editing"),
+        KeyItem("INSERT", "INS", "Editing"),
+        KeyItem("BACKSPACE", "BKSP", "Editing"),
+        KeyItem("SPACE", "SPACE", "Editing"),
+
+        // Function Keys
+        KeyItem("F1", "F1", "Function"),
+        KeyItem("F2", "F2", "Function"),
+        KeyItem("F3", "F3", "Function"),
+        KeyItem("F4", "F4", "Function"),
+        KeyItem("F5", "F5", "Function"),
+        KeyItem("F6", "F6", "Function"),
+        KeyItem("F7", "F7", "Function"),
+        KeyItem("F8", "F8", "Function"),
+        KeyItem("F9", "F9", "Function"),
+        KeyItem("F10", "F10", "Function"),
+        KeyItem("F11", "F11", "Function"),
+        KeyItem("F12", "F12", "Function"),
+        KeyItem("PRINTSCREEN", "PRTSC", "Function")
+    )
+
+    val DEFAULT_KEY_CODES: List<String> = listOf(
+        "ESC", "TAB", "SHIFT", "ENTER",
+        "HOME", "END", "UP", "DOWN"
+    )
+
+    fun find(code: String): KeyItem {
+        return ALL_KEYS.firstOrNull { it.code.equals(code, ignoreCase = true) }
+            ?: KeyItem(code, code, "Custom")
+    }
+}

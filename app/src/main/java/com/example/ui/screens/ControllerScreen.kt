@@ -75,6 +75,8 @@ fun ControllerScreen(
     onKeyboardTextChange: (String) -> Unit,
     onToggleKeyboard: () -> Unit,
     onDisconnect: () -> Unit,
+    onUpdateQuickKeys: (List<String>) -> Unit = {},
+    onResetQuickKeys: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BackHandler { onBackToHub() }
@@ -335,11 +337,12 @@ fun ControllerScreen(
             // Remote Keyboard Bar
             RemoteKeyboardBar(
                 isOpen = isKbOpen,
-                inputText = state.keyboardInputText,
+                customKeyCodes = state.customQuickKeys,
                 focusRequester = focusRequester,
-                onInputTextChange = onKeyboardTextChange,
                 onSendText = onSendText,
                 onKeyPress = onKeyPress,
+                onUpdateQuickKeys = onUpdateQuickKeys,
+                onResetQuickKeys = onResetQuickKeys,
                 onClose = onToggleKeyboard
             )
         }

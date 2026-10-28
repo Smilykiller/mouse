@@ -61,7 +61,8 @@ data class AirGlideUiState(
     val hostClickFlash: ClickButton? = null,
     val hostScrollFlash: Float = 0f,
     val hostPacketLogs: List<String> = emptyList(),
-    val isHostRunning: Boolean = false
+    val isHostRunning: Boolean = false,
+    val customQuickKeys: List<String> = com.example.model.KeyboardCatalog.DEFAULT_KEY_CODES
 )
 
 /** The laptop counts as "live" when we heard from it within this window. */
@@ -131,6 +132,13 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         val btOn = NetworkUtils.isBluetoothHardwareEnabled(application)
         val netConnected = NetworkUtils.isWifiOrHotspotConnected(application)
 
+        val savedKeysStr = sharedPrefs.getString("custom_quick_keys", null)
+        val initialKeys = if (!savedKeysStr.isNullOrBlank()) {
+            savedKeysStr.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(8)
+        } else {
+            com.example.model.KeyboardCatalog.DEFAULT_KEY_CODES
+        }
+
         _uiState.update {
             it.copy(
                 settings = initialSettings,
@@ -139,7 +147,8 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
                 deviceHistory = history,
                 isWifiEnabled = wifiOn,
                 isBluetoothEnabled = btOn,
-                isLocalNetworkActive = netConnected
+                isLocalNetworkActive = netConnected,
+                customQuickKeys = initialKeys
             )
         }
 
@@ -327,6 +336,18 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
 
     fun setKeyboardText(text: String) {
         _uiState.update { it.copy(keyboardInputText = text) }
+    }
+
+    fun updateQuickKeys(keys: List<String>) {
+        val trimmed = keys.take(8)
+        _uiState.update { it.copy(customQuickKeys = trimmed) }
+        sharedPrefs.edit().putString("custom_quick_keys", trimmed.joinToString(",")).apply()
+    }
+
+    fun resetQuickKeys() {
+        val defaultKeys = com.example.model.KeyboardCatalog.DEFAULT_KEY_CODES
+        _uiState.update { it.copy(customQuickKeys = defaultKeys) }
+        sharedPrefs.edit().putString("custom_quick_keys", defaultKeys.joinToString(",")).apply()
     }
 
     fun toggleKeyboard() {

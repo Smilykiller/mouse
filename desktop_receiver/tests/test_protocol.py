@@ -80,11 +80,12 @@ class EngineTests(unittest.TestCase):
     def test_all_commands(self):
         engine, backend = self.make()
         for line in ["M:3,-4:d", "C:L:d", "C:R:d", "D:L:d", "U:L:d", "S:2:d", "S:0:d", "K:ENTER:d",
-                     "T:hi\\:there:d"]:
+                     "K:SHIFT:d", "K:HOME:d", "K:END:d", "T:hi\\:there:d"]:
             self.feed(engine, line)
         self.assertEqual(backend.calls, [
             ("move", 3, -4), ("click", "L"), ("click", "R"), ("down", "L"), ("up", "L"),
-            ("scroll", 2), ("key", "ENTER"), ("text", "hi:there")])
+            ("scroll", 2), ("key", "ENTER"), ("key", "SHIFT"), ("key", "HOME"), ("key", "END"),
+            ("text", "hi:there")])
 
     def test_other_phone_is_ignored(self):
         engine, backend = self.make()

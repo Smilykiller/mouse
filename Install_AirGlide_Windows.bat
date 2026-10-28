@@ -7,13 +7,16 @@ echo.
 
 set "INSTALL_DIR=%LOCALAPPDATA%\AirGlide"
 set "EXE_SRC=%~dp0AirGlide_Laptop_Receiver.exe"
-set "ICO_SRC=%~dp0desktop_receiver\Resources\app_icon.ico"
+set "ICO_SRC=%~dp0Resources\app_icon.ico"
+set "RES_SRC=%~dp0Resources"
 
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+if not exist "%INSTALL_DIR%\Resources" mkdir "%INSTALL_DIR%\Resources"
 
 echo [1/4] Copying AirGlide application files...
 copy /Y "%EXE_SRC%" "%INSTALL_DIR%\AirGlide.exe" >nul
 if exist "%ICO_SRC%" copy /Y "%ICO_SRC%" "%INSTALL_DIR%\AirGlide.ico" >nul
+if exist "%RES_SRC%" xcopy /E /I /Y "%RES_SRC%" "%INSTALL_DIR%\Resources\" >nul
 
 echo [2/4] Creating Start Menu shortcut with custom logo...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -21,8 +24,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$s = $ws.CreateShortcut([System.IO.Path]::Combine($env:APPDATA, 'Microsoft\Windows\Start Menu\Programs\AirGlide Remote.lnk')); " ^
   "$s.TargetPath = [System.IO.Path]::Combine($env:LOCALAPPDATA, 'AirGlide\AirGlide.exe'); " ^
   "$s.WorkingDirectory = [System.IO.Path]::Combine($env:LOCALAPPDATA, 'AirGlide'); " ^
-  "$s.IconLocation = [System.IO.Path]::Combine($env:LOCALAPPDATA, 'AirGlide\AirGlide.ico, 0'); " ^
-  "$s.Description = 'AirGlide Remote - Ultra-low latency wireless trackpad & keyboard'; " ^
+  "$s.IconLocation = ([System.IO.Path]::Combine($env:LOCALAPPDATA, 'AirGlide\AirGlide.ico') + ',0'); " ^
+  "$s.Description = 'AirGlide Remote - Wireless Mouse & Keyboard'; " ^
   "$s.Save()"
 
 echo [3/4] Creating Desktop shortcut...
@@ -31,7 +34,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$s = $ws.CreateShortcut([System.IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), 'AirGlide Remote.lnk')); " ^
   "$s.TargetPath = [System.IO.Path]::Combine($env:LOCALAPPDATA, 'AirGlide\AirGlide.exe'); " ^
   "$s.WorkingDirectory = [System.IO.Path]::Combine($env:LOCALAPPDATA, 'AirGlide'); " ^
-  "$s.IconLocation = [System.IO.Path]::Combine($env:LOCALAPPDATA, 'AirGlide\AirGlide.ico, 0'); " ^
+  "$s.IconLocation = ([System.IO.Path]::Combine($env:LOCALAPPDATA, 'AirGlide\AirGlide.ico') + ',0'); " ^
   "$s.Description = 'AirGlide Remote'; " ^
   "$s.Save()"
 

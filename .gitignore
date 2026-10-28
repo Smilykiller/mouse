@@ -35,5 +35,7 @@ __pycache__/
 # Large binary distributions (exceeds GitHub 100MB limit)
 *.exe
 *.apk
-*.png
 *.zip
+*.png
+!Resources/*.png
+!desktop_receiver/Resources/*.png

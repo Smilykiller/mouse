@@ -13,38 +13,36 @@ namespace AirGlideDesktop
         private NotifyIcon _trayIcon = null!;
         private ContextMenuStrip _trayMenu = null!;
 
-        // Controls
-        private Label _lblStatusDot = null!;
-        private Label _lblStatusText = null!;
-        private Label _lblActiveDevice = null!;
-        private Label _lblActiveSub = null!;
-        private Button _btnDisconnectPhone = null!;
+        // Dynamic State UI Elements
+        private Label _lblStatusBadge = null!;
+        private Panel _pnlHeroStatus = null!;
+        private Label _lblHeroTitle = null!;
+        private Label _lblHeroDesc = null!;
+        private Button _btnDisconnect = null!;
 
-        private Label _lblIpAddress = null!;
+        private Label _lblIpDisplay = null!;
         private Button _btnCopyIp = null!;
 
-        private CheckBox _chkRunAtStartup = null!;
-        private Button _btnCreateShortcuts = null!;
+        private CheckBox _chkAutoStart = null!;
+        private Button _btnMakeShortcuts = null!;
 
-        private Panel _pnlLogSection = null!;
-        private Button _btnToggleLog = null!;
+        private Panel _pnlLogsDrawer = null!;
+        private Button _btnToggleLogs = null!;
         private ListBox _lstLogs = null!;
 
-        private Button _btnToggleServer = null!;
-        private Button _btnMinimizeTray = null!;
-        private System.Windows.Forms.Timer _uiRefreshTimer = null!;
+        private Button _btnMinimize = null!;
+        private System.Windows.Forms.Timer _refreshTimer = null!;
 
-        // Theme Colors
-        private readonly Color ColorBg = Color.FromArgb(12, 12, 16);
-        private readonly Color ColorCard = Color.FromArgb(22, 22, 28);
-        private readonly Color ColorCardHighlight = Color.FromArgb(28, 28, 36);
-        private readonly Color ColorBorder = Color.FromArgb(45, 45, 55);
-        private readonly Color ColorTextPrimary = Color.FromArgb(250, 250, 250);
-        private readonly Color ColorTextSecondary = Color.FromArgb(160, 160, 175);
-        private readonly Color ColorTextMuted = Color.FromArgb(110, 110, 125);
-        private readonly Color ColorGreen = Color.FromArgb(34, 197, 94);
-        private readonly Color ColorCyan = Color.FromArgb(6, 182, 212);
-        private readonly Color ColorRed = Color.FromArgb(239, 68, 68);
+        // Modern Fluent Palette
+        private readonly Color BgColor = Color.FromArgb(15, 17, 23);
+        private readonly Color CardBg = Color.FromArgb(24, 27, 36);
+        private readonly Color CardBorder = Color.FromArgb(42, 47, 62);
+        private readonly Color TextPrimary = Color.FromArgb(245, 247, 250);
+        private readonly Color TextSecondary = Color.FromArgb(155, 165, 180);
+        private readonly Color TextMuted = Color.FromArgb(105, 115, 135);
+        private readonly Color AccentCyan = Color.FromArgb(6, 182, 212);
+        private readonly Color AccentGreen = Color.FromArgb(34, 197, 94);
+        private readonly Color AccentRed = Color.FromArgb(239, 68, 68);
 
         public MainForm(bool startMinimized = false)
         {
@@ -53,18 +51,12 @@ namespace AirGlideDesktop
 
             LoadAppIcon();
             InitializeComponent();
-            SetupTrayIcon();
+            SetupTrayMenu();
 
-            _engine.OnLog += msg =>
-            {
-                AppendLogSafe($"[SYS] {msg}");
-            };
+            _engine.OnLog += msg => AppendLogSafe($"[SYS] {msg}");
             _engine.OnPacketProcessed += (cmd, detail) =>
             {
-                if (cmd != "MOVE") // Don't flood the UI list with high-rate mouse moves
-                {
-                    AppendLogSafe($"[{cmd}] {detail}");
-                }
+                if (cmd != "MOVE") AppendLogSafe($"[{cmd}] {detail}");
             };
 
             _engine.Start();
@@ -100,85 +92,90 @@ namespace AirGlideDesktop
         private void InitializeComponent()
         {
             this.Text = "AirGlide Remote - Laptop Receiver";
-            this.Size = new Size(680, 720);
-            this.MinimumSize = new Size(620, 600);
-            this.BackColor = ColorBg;
-            this.ForeColor = ColorTextPrimary;
+            this.Size = new Size(650, 750);
+            this.MinimumSize = new Size(580, 680);
+            this.BackColor = BgColor;
+            this.ForeColor = TextPrimary;
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Font = new Font("Segoe UI", 9.5f, FontStyle.Regular);
+            this.Font = new Font("Segoe UI", 10f, FontStyle.Regular);
+            this.AutoScaleMode = AutoScaleMode.Dpi;
 
-            // Main scrollable canvas
-            Panel scrollCanvas = new Panel
+            // Scrollable view for all DPIs
+            Panel scrollWrapper = new Panel
             {
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
-                BackColor = ColorBg,
-                Padding = new Padding(18)
+                BackColor = BgColor,
+                Padding = new Padding(24, 16, 24, 20)
             };
 
-            // Vertical container
-            FlowLayoutPanel contentFlow = new FlowLayoutPanel
+            // Main vertical layout
+            TableLayoutPanel layout = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
                 AutoSize = true,
-                FlowDirection = FlowDirection.TopDown,
-                WrapContents = false,
-                BackColor = ColorBg,
-                Width = 620
+                ColumnCount = 1,
+                RowCount = 6,
+                BackColor = BgColor
             };
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
-            // 1. Header with Logo & Status
-            Panel pnlHeader = CreateHeaderPanel();
-            contentFlow.Controls.Add(pnlHeader);
+            // 1. Header with App Logo & Title
+            layout.Controls.Add(BuildHeaderRow());
 
-            // 2. Active Controller Status Card
-            Panel pnlDeviceCard = CreateDeviceCard();
-            contentFlow.Controls.Add(pnlDeviceCard);
+            // 2. Hero Status Card (Big, Friendly, Clean)
+            layout.Controls.Add(BuildHeroStatusCard());
 
-            // 3. Simple 3-Step Guide for New Users
-            Panel pnlGuide = CreateQuickGuideCard();
-            contentFlow.Controls.Add(pnlGuide);
+            // 3. Clear 3-Step Guide for Beginners
+            layout.Controls.Add(BuildStepGuideCard());
 
-            // 4. Laptop Network & Connection Info
-            Panel pnlNetwork = CreateNetworkCard();
-            contentFlow.Controls.Add(pnlNetwork);
+            // 4. Laptop Wi-Fi Connection Address Card
+            layout.Controls.Add(BuildNetworkCard());
 
-            // 5. Windows Taskbar & Start Menu Shortcuts Card
-            Panel pnlShortcuts = CreateShortcutsCard();
-            contentFlow.Controls.Add(pnlShortcuts);
+            // 5. Windows Taskbar, Start Menu & Startup Card
+            layout.Controls.Add(BuildShortcutsCard());
 
-            // 6. Diagnostics & Log Panel (Collapsible)
-            _pnlLogSection = CreateLogSection();
-            contentFlow.Controls.Add(_pnlLogSection);
+            // 6. Diagnostics & Footer Bar
+            layout.Controls.Add(BuildFooterSection());
 
-            // 7. Bottom Action Controls
-            Panel pnlActions = CreateBottomActions();
-            contentFlow.Controls.Add(pnlActions);
+            scrollWrapper.Controls.Add(layout);
+            this.Controls.Add(scrollWrapper);
 
-            scrollCanvas.Controls.Add(contentFlow);
-            this.Controls.Add(scrollCanvas);
-
-            // Refresh timer for live UI stats
-            _uiRefreshTimer = new System.Windows.Forms.Timer { Interval = 800 };
-            _uiRefreshTimer.Tick += (s, e) => UpdateUiFromState();
-            _uiRefreshTimer.Start();
+            // Timer to refresh status smoothly
+            _refreshTimer = new System.Windows.Forms.Timer { Interval = 800 };
+            _refreshTimer.Tick += (s, e) => UpdateUiFromState();
+            _refreshTimer.Start();
         }
 
-        private Panel CreateHeaderPanel()
+        private Control BuildHeaderRow()
         {
-            Panel pnl = new Panel
+            TableLayoutPanel pnl = new TableLayoutPanel
             {
-                Size = new Size(610, 52),
-                Margin = new Padding(0, 0, 0, 12),
-                BackColor = ColorBg
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 2,
+                RowCount = 1,
+                Margin = new Padding(0, 0, 0, 14),
+                BackColor = BgColor
+            };
+            pnl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70f));
+            pnl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
+
+            // Left branding: Logo + Title + Subtitle
+            FlowLayoutPanel branding = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                BackColor = BgColor
             };
 
-            // Logo Picture
             PictureBox picLogo = new PictureBox
             {
-                Size = new Size(38, 38),
-                Location = new Point(0, 6),
-                SizeMode = PictureBoxSizeMode.Zoom
+                Size = new Size(42, 42),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Margin = new Padding(0, 2, 12, 0)
             };
             try
             {
@@ -194,443 +191,468 @@ namespace AirGlideDesktop
             }
             catch { }
 
-            Label lblTitle = new Label
+            FlowLayoutPanel titleText = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                BackColor = BgColor
+            };
+            Label lblApp = new Label
             {
                 Text = "AirGlide Remote",
-                Font = new Font("Segoe UI", 15f, FontStyle.Bold),
-                ForeColor = ColorTextPrimary,
+                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
+                ForeColor = TextPrimary,
                 AutoSize = true,
-                Location = new Point(46, 4)
+                Margin = new Padding(0, 0, 0, 2)
             };
-
-            Label lblSub = new Label
+            Label lblTag = new Label
             {
-                Text = "Ultra-Low Latency Wireless Trackpad & Keyboard",
-                Font = new Font("Segoe UI", 8.5f, FontStyle.Regular),
-                ForeColor = ColorTextSecondary,
+                Text = "Wireless Mouse & Keyboard for Windows",
+                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+                ForeColor = TextSecondary,
                 AutoSize = true,
-                Location = new Point(48, 28)
+                Margin = new Padding(0)
             };
+            titleText.Controls.Add(lblApp);
+            titleText.Controls.Add(lblTag);
 
-            // Status Badge (Top Right)
-            Panel pnlBadge = new Panel
-            {
-                Size = new Size(160, 32),
-                Location = new Point(445, 10),
-                BackColor = ColorCard
-            };
-            pnlBadge.Paint += (s, e) =>
-            {
-                ControlPaint.DrawBorder(e.Graphics, pnlBadge.ClientRectangle, ColorBorder, ButtonBorderStyle.Solid);
-            };
+            branding.Controls.Add(picLogo);
+            branding.Controls.Add(titleText);
+            pnl.Controls.Add(branding, 0, 0);
 
-            _lblStatusDot = new Label
+            // Right: Status Badge
+            _lblStatusBadge = new Label
             {
-                Text = "●",
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = ColorGreen,
-                Size = new Size(18, 24),
-                Location = new Point(8, 4)
+                Text = "● READY",
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                ForeColor = AccentGreen,
+                BackColor = CardBg,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Size = new Size(130, 36),
+                Anchor = AnchorStyles.Right,
+                Margin = new Padding(0, 4, 0, 0)
             };
-            _lblStatusText = new Label
-            {
-                Text = "LISTENING (5055)",
-                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
-                ForeColor = ColorTextPrimary,
-                Size = new Size(125, 20),
-                Location = new Point(28, 7)
-            };
-            pnlBadge.Controls.Add(_lblStatusDot);
-            pnlBadge.Controls.Add(_lblStatusText);
+            pnl.Controls.Add(_lblStatusBadge, 1, 0);
 
-            pnl.Controls.Add(picLogo);
-            pnl.Controls.Add(lblTitle);
-            pnl.Controls.Add(lblSub);
-            pnl.Controls.Add(pnlBadge);
             return pnl;
         }
 
-        private Panel CreateDeviceCard()
+        private Control BuildHeroStatusCard()
         {
-            Panel card = CreateRoundedCard(610, 95);
-            card.Margin = new Padding(0, 0, 0, 12);
+            _pnlHeroStatus = CreateCardContainer();
+            _pnlHeroStatus.Margin = new Padding(0, 0, 0, 14);
+            _pnlHeroStatus.Padding = new Padding(20, 16, 20, 16);
 
-            Label lblHeading = new Label
+            TableLayoutPanel inner = new TableLayoutPanel
             {
-                Text = "MOBILE CONNECTION STATUS",
-                Font = new Font("Segoe UI", 8f, FontStyle.Bold),
-                ForeColor = ColorTextMuted,
-                Location = new Point(16, 12),
-                AutoSize = true
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 2,
+                RowCount = 2,
+                BackColor = CardBg
+            };
+            inner.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75f));
+            inner.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+
+            _lblHeroTitle = new Label
+            {
+                Text = "🟢 Ready to Connect",
+                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = AccentGreen,
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 6)
             };
 
-            _lblActiveDevice = new Label
+            _lblHeroDesc = new Label
             {
-                Text = "Waiting for phone to connect...",
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = ColorTextPrimary,
-                Location = new Point(15, 32),
-                AutoSize = true
+                Text = "Open the AirGlide app on your phone. It connects automatically over Wi-Fi.",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Regular),
+                ForeColor = TextSecondary,
+                AutoSize = true,
+                Margin = new Padding(0)
             };
 
-            _lblActiveSub = new Label
+            _btnDisconnect = new Button
             {
-                Text = "Open AirGlide on your phone. It connects automatically over Wi-Fi.",
-                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
-                ForeColor = ColorTextSecondary,
-                Location = new Point(16, 62),
-                AutoSize = true
-            };
-
-            _btnDisconnectPhone = new Button
-            {
-                Text = "Disconnect",
-                Size = new Size(100, 32),
-                Location = new Point(490, 36),
-                BackColor = Color.FromArgb(45, 20, 20),
+                Text = "Disconnect Phone",
+                Size = new Size(130, 38),
+                BackColor = Color.FromArgb(55, 20, 20),
                 ForeColor = Color.FromArgb(248, 113, 113),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                Anchor = AnchorStyles.Right,
                 Visible = false
             };
-            _btnDisconnectPhone.FlatAppearance.BorderSize = 1;
-            _btnDisconnectPhone.FlatAppearance.BorderColor = Color.FromArgb(127, 29, 29);
-            _btnDisconnectPhone.Click += (s, e) =>
+            _btnDisconnect.FlatAppearance.BorderSize = 1;
+            _btnDisconnect.FlatAppearance.BorderColor = Color.FromArgb(140, 30, 30);
+            _btnDisconnect.Click += (s, e) =>
             {
                 _engine.ReleaseController();
                 UpdateUiFromState();
             };
 
-            card.Controls.Add(lblHeading);
-            card.Controls.Add(_lblActiveDevice);
-            card.Controls.Add(_lblActiveSub);
-            card.Controls.Add(_btnDisconnectPhone);
-            return card;
+            inner.Controls.Add(_lblHeroTitle, 0, 0);
+            inner.Controls.Add(_btnDisconnect, 1, 0);
+            inner.Controls.Add(_lblHeroDesc, 0, 1);
+            inner.SetColumnSpan(_lblHeroDesc, 2);
+
+            _pnlHeroStatus.Controls.Add(inner);
+            return _pnlHeroStatus;
         }
 
-        private Panel CreateQuickGuideCard()
+        private Control BuildStepGuideCard()
         {
-            Panel card = CreateRoundedCard(610, 120);
-            card.Margin = new Padding(0, 0, 0, 12);
+            Panel card = CreateCardContainer();
+            card.Margin = new Padding(0, 0, 0, 14);
+            card.Padding = new Padding(20, 14, 20, 16);
 
-            Label lblTitle = new Label
+            FlowLayoutPanel flow = new FlowLayoutPanel
             {
-                Text = "HOW TO USE (QUICK START GUIDE)",
-                Font = new Font("Segoe UI", 8f, FontStyle.Bold),
-                ForeColor = ColorCyan,
-                Location = new Point(16, 10),
-                AutoSize = true
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                BackColor = CardBg
             };
-            card.Controls.Add(lblTitle);
-
-            int colWidth = 190;
-            // Step 1
-            Panel s1 = CreateStepColumn("1. Same Wi-Fi", "Connect phone and laptop to the same Wi-Fi or mobile hotspot.", 16);
-            // Step 2
-            Panel s2 = CreateStepColumn("2. Open App", "Launch AirGlide on your phone. It auto-discovers this laptop.", 16 + colWidth);
-            // Step 3
-            Panel s3 = CreateStepColumn("3. Control PC", "Swipe to move cursor, tap buttons, or use the live keyboard.", 16 + colWidth * 2);
-
-            card.Controls.Add(s1);
-            card.Controls.Add(s2);
-            card.Controls.Add(s3);
-            return card;
-        }
-
-        private Panel CreateStepColumn(string title, string desc, int left)
-        {
-            Panel pnl = new Panel
-            {
-                Size = new Size(180, 75),
-                Location = new Point(left, 32),
-                BackColor = ColorCardHighlight
-            };
-            pnl.Paint += (s, e) =>
-            {
-                ControlPaint.DrawBorder(e.Graphics, pnl.ClientRectangle, ColorBorder, ButtonBorderStyle.Solid);
-            };
-
-            Label lblT = new Label
-            {
-                Text = title,
-                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                ForeColor = ColorTextPrimary,
-                Location = new Point(8, 8),
-                AutoSize = true
-            };
-            Label lblD = new Label
-            {
-                Text = desc,
-                Font = new Font("Segoe UI", 8f, FontStyle.Regular),
-                ForeColor = ColorTextSecondary,
-                Location = new Point(8, 28),
-                Size = new Size(164, 42)
-            };
-            pnl.Controls.Add(lblT);
-            pnl.Controls.Add(lblD);
-            return pnl;
-        }
-
-        private Panel CreateNetworkCard()
-        {
-            Panel card = CreateRoundedCard(610, 95);
-            card.Margin = new Padding(0, 0, 0, 12);
 
             Label lblHeader = new Label
             {
-                Text = "LAPTOP NETWORK ADDRESS",
-                Font = new Font("Segoe UI", 8f, FontStyle.Bold),
-                ForeColor = ColorTextMuted,
-                Location = new Point(16, 10),
-                AutoSize = true
+                Text = "HOW TO CONNECT (EASY 3 STEPS)",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                ForeColor = AccentCyan,
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 10)
+            };
+            flow.Controls.Add(lblHeader);
+
+            // Step 1
+            flow.Controls.Add(CreateGuideItem("1", "Same Wi-Fi Network", "Make sure your phone and laptop are connected to the same Wi-Fi or mobile hotspot."));
+            // Step 2
+            flow.Controls.Add(CreateGuideItem("2", "Open AirGlide on Phone", "Launch the app on your phone. It will automatically detect this laptop."));
+            // Step 3
+            flow.Controls.Add(CreateGuideItem("3", "Control Your Laptop", "Swipe your finger on your phone screen to glide the mouse pointer, or type live!"));
+
+            card.Controls.Add(flow);
+            return card;
+        }
+
+        private Control CreateGuideItem(string stepNum, string stepTitle, string stepDetail)
+        {
+            TableLayoutPanel row = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 2,
+                RowCount = 1,
+                Margin = new Padding(0, 0, 0, 8),
+                BackColor = CardBg
+            };
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 32f));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+
+            // Number Badge
+            Label numBadge = new Label
+            {
+                Text = stepNum,
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = TextPrimary,
+                BackColor = Color.FromArgb(36, 42, 58),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Size = new Size(24, 24),
+                Margin = new Padding(0, 2, 8, 0)
             };
 
-            _lblIpAddress = new Label
+            FlowLayoutPanel textCol = new FlowLayoutPanel
             {
-                Text = $"{_engine.LocalIp}:{_engine.Port}",
-                Font = new Font("Consolas", 18f, FontStyle.Bold),
-                ForeColor = ColorTextPrimary,
-                Location = new Point(14, 28),
-                AutoSize = true
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                BackColor = CardBg
+            };
+            Label title = new Label
+            {
+                Text = stepTitle,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = TextPrimary,
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 2)
+            };
+            Label detail = new Label
+            {
+                Text = stepDetail,
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Regular),
+                ForeColor = TextSecondary,
+                AutoSize = true,
+                Margin = new Padding(0)
+            };
+            textCol.Controls.Add(title);
+            textCol.Controls.Add(detail);
+
+            row.Controls.Add(numBadge, 0, 0);
+            row.Controls.Add(textCol, 1, 0);
+            return row;
+        }
+
+        private Control BuildNetworkCard()
+        {
+            Panel card = CreateCardContainer();
+            card.Margin = new Padding(0, 0, 0, 14);
+            card.Padding = new Padding(20, 14, 20, 16);
+
+            TableLayoutPanel table = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 2,
+                RowCount = 3,
+                BackColor = CardBg
+            };
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75f));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+
+            Label lblHeading = new Label
+            {
+                Text = "LAPTOP WI-FI ADDRESS",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                ForeColor = TextMuted,
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 4)
+            };
+
+            _lblIpDisplay = new Label
+            {
+                Text = $"{_engine.LocalIp}  (Port {_engine.Port})",
+                Font = new Font("Consolas", 15f, FontStyle.Bold),
+                ForeColor = TextPrimary,
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 6)
             };
 
             _btnCopyIp = new Button
             {
-                Text = "Copy IP",
-                Size = new Size(80, 30),
-                Location = new Point(490, 28),
-                BackColor = ColorBorder,
-                ForeColor = ColorTextPrimary,
+                Text = "📋 Copy IP",
+                Size = new Size(100, 34),
+                BackColor = CardBorder,
+                ForeColor = TextPrimary,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                Anchor = AnchorStyles.Right
             };
             _btnCopyIp.FlatAppearance.BorderSize = 0;
             _btnCopyIp.Click += (s, e) =>
             {
                 Clipboard.SetText(_engine.LocalIp);
-                MessageBox.Show(this, $"Copied IP ({_engine.LocalIp}) to clipboard!", "AirGlide Remote", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, $"Copied IP ({_engine.LocalIp}) to clipboard!\n\nYour phone will find this laptop automatically, but you can also type this IP in your phone if needed.", "AirGlide Remote", MessageBoxButtons.OK, MessageBoxIcon.Information);
             };
 
-            Label lblNotice = new Label
+            Label lblTip = new Label
             {
-                Text = "✓ Auto-Discovery is active. You only need to type this IP if your Wi-Fi blocks auto-discovery.",
+                Text = "Auto-Discovery is active. You only need to type this IP if your Wi-Fi router blocks auto-discovery.",
                 Font = new Font("Segoe UI", 8.5f, FontStyle.Regular),
-                ForeColor = ColorGreen,
-                Location = new Point(16, 64),
-                AutoSize = true
+                ForeColor = AccentGreen,
+                AutoSize = true,
+                Margin = new Padding(0)
             };
 
-            card.Controls.Add(lblHeader);
-            card.Controls.Add(_lblIpAddress);
-            card.Controls.Add(_btnCopyIp);
-            card.Controls.Add(lblNotice);
+            table.Controls.Add(lblHeading, 0, 0);
+            table.Controls.Add(_lblIpDisplay, 0, 1);
+            table.Controls.Add(_btnCopyIp, 1, 1);
+            table.Controls.Add(lblTip, 0, 2);
+            table.SetColumnSpan(lblTip, 2);
+
+            card.Controls.Add(table);
             return card;
         }
 
-        private Panel CreateShortcutsCard()
+        private Control BuildShortcutsCard()
         {
-            Panel card = CreateRoundedCard(610, 85);
-            card.Margin = new Padding(0, 0, 0, 12);
+            Panel card = CreateCardContainer();
+            card.Margin = new Padding(0, 0, 0, 14);
+            card.Padding = new Padding(20, 14, 20, 16);
+
+            FlowLayoutPanel flow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                BackColor = CardBg
+            };
 
             Label lblTitle = new Label
             {
-                Text = "WINDOWS INTEGRATION (SHORTCUTS & TASKBAR)",
-                Font = new Font("Segoe UI", 8f, FontStyle.Bold),
-                ForeColor = ColorTextMuted,
-                Location = new Point(16, 10),
-                AutoSize = true
+                Text = "EASY ACCESS & TASKBAR PINNING",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                ForeColor = TextMuted,
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 8)
             };
+            flow.Controls.Add(lblTitle);
 
-            _btnCreateShortcuts = new Button
+            _btnMakeShortcuts = new Button
             {
-                Text = "📌 Add to Start Menu & Desktop",
-                Size = new Size(240, 34),
-                Location = new Point(16, 34),
-                BackColor = ColorCyan,
+                Text = "📌 Add Shortcut to Start Menu & Desktop",
+                Size = new Size(340, 38),
+                BackColor = AccentCyan,
                 ForeColor = Color.Black,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9f, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Margin = new Padding(0, 0, 0, 8)
             };
-            _btnCreateShortcuts.FlatAppearance.BorderSize = 0;
-            _btnCreateShortcuts.Click += (s, e) =>
+            _btnMakeShortcuts.FlatAppearance.BorderSize = 0;
+            _btnMakeShortcuts.Click += (s, e) =>
             {
-                var result = WindowsShortcutHelper.InstallAndCreateShortcuts();
-                if (result.Success)
+                var res = WindowsShortcutHelper.InstallAndCreateShortcuts();
+                if (res.Success)
                 {
-                    MessageBox.Show(this, 
-                        $"{result.Message}\n\nTo pin to Taskbar in Windows 11:\nSearch 'AirGlide' in Start, right-click and click 'Pin to taskbar'!", 
-                        "AirGlide Remote", 
-                        MessageBoxButtons.OK, 
+                    MessageBox.Show(this,
+                        "AirGlide Remote shortcut created on your Desktop and in your Start Menu with the custom logo!\n\nTo pin to taskbar in Windows 11:\n1. Search 'AirGlide Remote' in your Start Menu\n2. Right-click it and click 'Pin to taskbar'!",
+                        "AirGlide Remote",
+                        MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
                 }
                 else
                 {
-                    MessageBox.Show(this, result.Message, "AirGlide Remote", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(this, res.Message, "AirGlide Remote", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             };
+            flow.Controls.Add(_btnMakeShortcuts);
 
-            _chkRunAtStartup = new CheckBox
+            _chkAutoStart = new CheckBox
             {
-                Text = "Start automatically when Windows turns on",
+                Text = "Start AirGlide automatically when your laptop turns on",
                 AutoSize = true,
-                Location = new Point(275, 41),
-                ForeColor = ColorTextSecondary,
+                ForeColor = TextSecondary,
                 Font = new Font("Segoe UI", 9f, FontStyle.Regular),
-                Checked = WindowsShortcutHelper.IsRunAtStartupEnabled()
+                Checked = WindowsShortcutHelper.IsRunAtStartupEnabled(),
+                Margin = new Padding(0, 4, 0, 0)
             };
-            _chkRunAtStartup.CheckedChanged += (s, e) =>
+            _chkAutoStart.CheckedChanged += (s, e) =>
             {
-                WindowsShortcutHelper.SetRunAtStartup(_chkRunAtStartup.Checked);
+                WindowsShortcutHelper.SetRunAtStartup(_chkAutoStart.Checked);
             };
+            flow.Controls.Add(_chkAutoStart);
 
-            card.Controls.Add(lblTitle);
-            card.Controls.Add(_btnCreateShortcuts);
-            card.Controls.Add(_chkRunAtStartup);
+            card.Controls.Add(flow);
             return card;
         }
 
-        private Panel CreateLogSection()
+        private Control BuildFooterSection()
         {
-            Panel pnl = new Panel
+            FlowLayoutPanel flow = new FlowLayoutPanel
             {
-                Size = new Size(610, 42),
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                Margin = new Padding(0, 0, 0, 10),
+                BackColor = BgColor
+            };
+
+            // Main Buttons Row: Minimize to Tray & Technical Details Toggle
+            TableLayoutPanel actionRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 2,
+                RowCount = 1,
                 Margin = new Padding(0, 0, 0, 8),
-                BackColor = ColorCard
+                BackColor = BgColor
             };
-            pnl.Paint += (s, e) =>
+            actionRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            actionRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+
+            _btnMinimize = new Button
             {
-                ControlPaint.DrawBorder(e.Graphics, pnl.ClientRectangle, ColorBorder, ButtonBorderStyle.Solid);
+                Text = "⬇ Minimize to System Tray",
+                Size = new Size(240, 36),
+                BackColor = CardBg,
+                ForeColor = TextPrimary,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9f, FontStyle.Regular)
+            };
+            _btnMinimize.FlatAppearance.BorderColor = CardBorder;
+            _btnMinimize.Click += (s, e) =>
+            {
+                this.Hide();
+                _trayIcon.ShowBalloonTip(1500, "AirGlide Remote", "Running silently in system tray. Double-click icon to open anytime.", ToolTipIcon.Info);
             };
 
-            _btnToggleLog = new Button
+            _btnToggleLogs = new Button
             {
-                Text = "Show Activity Log ▼",
-                Size = new Size(150, 28),
-                Location = new Point(12, 7),
-                BackColor = ColorBorder,
-                ForeColor = ColorTextPrimary,
+                Text = "⚙ Advanced / Activity Log ▼",
+                Size = new Size(240, 36),
+                BackColor = CardBg,
+                ForeColor = TextSecondary,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8.5f, FontStyle.Regular)
+                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+                Anchor = AnchorStyles.Right
             };
-            _btnToggleLog.FlatAppearance.BorderSize = 0;
+            _btnToggleLogs.FlatAppearance.BorderColor = CardBorder;
 
-            Button btnClear = new Button
+            actionRow.Controls.Add(_btnMinimize, 0, 0);
+            actionRow.Controls.Add(_btnToggleLogs, 1, 0);
+            flow.Controls.Add(actionRow);
+
+            // Collapsible Log Drawer
+            _pnlLogsDrawer = new Panel
             {
-                Text = "Clear Log",
-                Size = new Size(80, 28),
-                Location = new Point(170, 7),
-                BackColor = ColorBorder,
-                ForeColor = ColorTextSecondary,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8.5f, FontStyle.Regular)
+                Size = new Size(580, 160),
+                BackColor = CardBg,
+                Visible = false,
+                Margin = new Padding(0, 4, 0, 10),
+                Padding = new Padding(12)
             };
-            btnClear.FlatAppearance.BorderSize = 0;
-            btnClear.Click += (s, e) => _lstLogs.Items.Clear();
+            _pnlLogsDrawer.Paint += (s, e) =>
+            {
+                ControlPaint.DrawBorder(e.Graphics, _pnlLogsDrawer.ClientRectangle, CardBorder, ButtonBorderStyle.Solid);
+            };
 
             _lstLogs = new ListBox
             {
-                Location = new Point(12, 44),
-                Size = new Size(586, 120),
-                BackColor = ColorBg,
-                ForeColor = ColorTextSecondary,
-                BorderStyle = BorderStyle.FixedSingle,
-                Font = new Font("Consolas", 8.5f, FontStyle.Regular),
-                Visible = false
+                Dock = DockStyle.Fill,
+                BackColor = BgColor,
+                ForeColor = TextSecondary,
+                BorderStyle = BorderStyle.None,
+                Font = new Font("Consolas", 8.5f, FontStyle.Regular)
             };
+            _pnlLogsDrawer.Controls.Add(_lstLogs);
 
-            bool expanded = false;
-            _btnToggleLog.Click += (s, e) =>
+            bool logExpanded = false;
+            _btnToggleLogs.Click += (s, e) =>
             {
-                expanded = !expanded;
-                if (expanded)
-                {
-                    pnl.Height = 175;
-                    _lstLogs.Visible = true;
-                    _btnToggleLog.Text = "Hide Activity Log ▲";
-                }
-                else
-                {
-                    pnl.Height = 42;
-                    _lstLogs.Visible = false;
-                    _btnToggleLog.Text = "Show Activity Log ▼";
-                }
+                logExpanded = !logExpanded;
+                _pnlLogsDrawer.Visible = logExpanded;
+                _btnToggleLogs.Text = logExpanded ? "⚙ Hide Advanced Log ▲" : "⚙ Advanced / Activity Log ▼";
             };
 
-            pnl.Controls.Add(_btnToggleLog);
-            pnl.Controls.Add(btnClear);
-            pnl.Controls.Add(_lstLogs);
-            return pnl;
+            flow.Controls.Add(_pnlLogsDrawer);
+            return flow;
         }
 
-        private Panel CreateBottomActions()
-        {
-            Panel pnl = new Panel
-            {
-                Size = new Size(610, 48),
-                Margin = new Padding(0, 4, 0, 16),
-                BackColor = ColorBg
-            };
-
-            _btnMinimizeTray = new Button
-            {
-                Text = "Minimize to System Tray",
-                Size = new Size(180, 36),
-                Location = new Point(0, 4),
-                BackColor = ColorBorder,
-                ForeColor = ColorTextPrimary,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9f, FontStyle.Regular)
-            };
-            _btnMinimizeTray.FlatAppearance.BorderSize = 0;
-            _btnMinimizeTray.Click += (s, e) =>
-            {
-                this.Hide();
-                _trayIcon.ShowBalloonTip(1500, "AirGlide Remote", "Running in system tray. Double-click to reopen.", ToolTipIcon.Info);
-            };
-
-            _btnToggleServer = new Button
-            {
-                Text = "Pause Receiver",
-                Size = new Size(130, 36),
-                Location = new Point(190, 4),
-                BackColor = ColorBorder,
-                ForeColor = ColorTextPrimary,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9f, FontStyle.Regular)
-            };
-            _btnToggleServer.FlatAppearance.BorderSize = 0;
-            _btnToggleServer.Click += (s, e) =>
-            {
-                if (_engine.IsRunning) _engine.Stop();
-                else _engine.Start();
-                UpdateUiFromState();
-            };
-
-            pnl.Controls.Add(_btnMinimizeTray);
-            pnl.Controls.Add(_btnToggleServer);
-            return pnl;
-        }
-
-        private Panel CreateRoundedCard(int width, int height)
+        private Panel CreateCardContainer()
         {
             Panel card = new Panel
             {
-                Size = new Size(width, height),
-                BackColor = ColorCard
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                BackColor = CardBg
             };
             card.Paint += (s, e) =>
             {
-                ControlPaint.DrawBorder(e.Graphics, card.ClientRectangle, ColorBorder, ButtonBorderStyle.Solid);
+                ControlPaint.DrawBorder(e.Graphics, card.ClientRectangle, CardBorder, ButtonBorderStyle.Solid);
             };
             return card;
         }
 
-        private void SetupTrayIcon()
+        private void SetupTrayMenu()
         {
             _trayMenu = new ContextMenuStrip();
-            _trayMenu.Items.Add("Open AirGlide", null, (s, e) => RestoreWindow());
+            _trayMenu.Items.Add("Open AirGlide Remote", null, (s, e) => RestoreWindow());
             _trayMenu.Items.Add("-");
-            _trayMenu.Items.Add("Exit", null, (s, e) =>
+            _trayMenu.Items.Add("Exit AirGlide", null, (s, e) =>
             {
                 _engine.Stop();
                 Application.Exit();
@@ -665,40 +687,38 @@ namespace AirGlideDesktop
 
             if (_engine.IsRunning)
             {
-                _lblStatusDot.ForeColor = ColorGreen;
-                _lblStatusText.Text = $"READY ({_engine.Port})";
-                _btnToggleServer.Text = "Pause Receiver";
+                _lblStatusBadge.ForeColor = AccentGreen;
+                _lblStatusBadge.Text = $"● READY (Port {_engine.Port})";
             }
             else
             {
-                _lblStatusDot.ForeColor = ColorRed;
-                _lblStatusText.Text = "PAUSED";
-                _btnToggleServer.Text = "Resume Receiver";
+                _lblStatusBadge.ForeColor = AccentRed;
+                _lblStatusBadge.Text = "● PAUSED";
             }
 
-            _lblIpAddress.Text = $"{_engine.LocalIp}:{_engine.Port}";
+            _lblIpDisplay.Text = $"{_engine.LocalIp}  (Port {_engine.Port})";
 
             if (_engine.ActiveDeviceId != null && _engine.Devices.TryGetValue(_engine.ActiveDeviceId, out var dev))
             {
-                _lblActiveDevice.Text = $"🟢 Connected: {dev.Name}";
-                _lblActiveDevice.ForeColor = ColorGreen;
-                _lblActiveSub.Text = $"{dev.PacketCount} packets received • Phone IP: {dev.IpAddress}";
-                _btnDisconnectPhone.Visible = true;
+                _lblHeroTitle.Text = $"🟢 Phone Connected: {dev.Name}";
+                _lblHeroTitle.ForeColor = AccentGreen;
+                _lblHeroDesc.Text = $"{dev.PacketCount} packets received • Your phone is now controlling this laptop.";
+                _btnDisconnect.Visible = true;
             }
             else if (_engine.Devices.Count > 0)
             {
                 var first = _engine.Devices.Values.First();
-                _lblActiveDevice.Text = $"🟢 Connected: {first.Name}";
-                _lblActiveDevice.ForeColor = ColorGreen;
-                _lblActiveSub.Text = $"{_engine.TotalPackets} packets received • Phone IP: {first.IpAddress}";
-                _btnDisconnectPhone.Visible = true;
+                _lblHeroTitle.Text = $"🟢 Phone Connected: {first.Name}";
+                _lblHeroTitle.ForeColor = AccentGreen;
+                _lblHeroDesc.Text = $"{_engine.TotalPackets} packets received • Your phone is now controlling this laptop.";
+                _btnDisconnect.Visible = true;
             }
             else
             {
-                _lblActiveDevice.Text = "Waiting for phone to connect...";
-                _lblActiveDevice.ForeColor = ColorTextPrimary;
-                _lblActiveSub.Text = "Open AirGlide on your phone. It connects automatically over Wi-Fi.";
-                _btnDisconnectPhone.Visible = false;
+                _lblHeroTitle.Text = "🟢 Ready to Connect";
+                _lblHeroTitle.ForeColor = AccentGreen;
+                _lblHeroDesc.Text = "Open the AirGlide app on your phone. It connects automatically over Wi-Fi.";
+                _btnDisconnect.Visible = false;
             }
         }
 
@@ -713,7 +733,7 @@ namespace AirGlideDesktop
 
             string line = $"[{DateTime.Now:HH:mm:ss}] {text}";
             _lstLogs.Items.Insert(0, line);
-            if (_lstLogs.Items.Count > 200)
+            if (_lstLogs.Items.Count > 150)
             {
                 _lstLogs.Items.RemoveAt(_lstLogs.Items.Count - 1);
             }
@@ -725,10 +745,10 @@ namespace AirGlideDesktop
             {
                 e.Cancel = true;
                 this.Hide();
-                _trayIcon.ShowBalloonTip(1500, "AirGlide Remote", "Running in background. Double-click tray icon to reopen.", ToolTipIcon.Info);
+                _trayIcon.ShowBalloonTip(1500, "AirGlide Remote", "Running in background. Double-click tray icon to open.", ToolTipIcon.Info);
                 return;
             }
-            _uiRefreshTimer?.Stop();
+            _refreshTimer?.Stop();
             _engine?.Stop();
             _trayIcon?.Dispose();
             base.OnFormClosing(e);

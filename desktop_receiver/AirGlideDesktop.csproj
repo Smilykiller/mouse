@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationTitle>AirGlide Desktop Receiver</ApplicationTitle>
+    <Company>AirGlide</Company>
+    <Product>AirGlide Desktop</Product>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+</Project>

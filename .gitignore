@@ -1,0 +1,34 @@
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+app/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.env
+debug.keystore
+
+# .NET / Windows build outputs
+bin/
+obj/
+publish/
+desktop_receiver/bin/
+desktop_receiver/obj/
+desktop_receiver/publish/
+.vs/
+*.user
+
+# Large binary distributions (exceeds GitHub 100MB limit)
+*.exe
+*.apk
+*.png

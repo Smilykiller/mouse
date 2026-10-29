@@ -11,5 +11,18 @@ if exist "%LOCALAPPDATA%\AirGlide\AirGlide.exe" (
     exit /b 0
 )
 
-cd /d "%~dp0desktop_receiver"
-call Start_AirGlide_Laptop.bat
+where py >nul 2>nul
+if %ERRORLEVEL% equ 0 (
+    py "%~dp0desktop_receiver\airglide_receiver.py"
+    goto :done
+)
+where python >nul 2>nul
+if %ERRORLEVEL% equ 0 (
+    python "%~dp0desktop_receiver\airglide_receiver.py"
+    goto :done
+)
+
+echo [ERROR] AirGlide receiver executable not found.
+echo         Please run Install_AirGlide_Windows.bat first.
+:done
+pause

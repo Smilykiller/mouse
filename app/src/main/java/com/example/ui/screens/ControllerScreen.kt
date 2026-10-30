@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +24,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Mouse
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -204,6 +208,78 @@ fun ControllerScreen(
                 }
             }
 
+            // Click & Drag Quick Action Bar (Available across all layouts)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Drag & Drop Mode Toggle
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (state.dragLockActive) Color(0xFFB45309) else Color(0xFF1E222D),
+                    border = BorderStroke(
+                        1.dp,
+                        if (state.dragLockActive) Color(0xFFF59E0B) else Color(0xFF334155)
+                    ),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onToggleDragLock() }
+                        .testTag("action_drag_lock")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (state.dragLockActive) Icons.Default.Lock else Icons.Default.TouchApp,
+                            contentDescription = "Click and Drag",
+                            tint = if (state.dragLockActive) Color.White else Color(0xFF94A3B8),
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (state.dragLockActive) "DRAG HELD (TAP TO DROP)" else "CLICK & DRAG",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (state.dragLockActive) Color.White else Color(0xFFCBD5E1)
+                        )
+                    }
+                }
+
+                // Middle Click Quick Action
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFF1E222D),
+                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onMiddleClick() }
+                        .testTag("action_middle_click")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mouse,
+                            contentDescription = "Middle Click",
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "MIDDLE CLICK",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFCBD5E1)
+                        )
+                    }
+                }
+            }
+
             // Mousepad Area: Size dynamically reduces when keyboard is opened
             val mousePadWeight = if (isKbOpen) 0.55f else 1.0f
 
@@ -222,6 +298,10 @@ fun ControllerScreen(
                             onDoubleTap = onLeftClick,
                             onLongPress = onRightClick,
                             onScroll = onScroll,
+                            theme = state.selectedTheme,
+                            customImagePath = state.customImagePath,
+                            dragLockActive = state.dragLockActive,
+                            onToggleDragLock = onToggleDragLock,
                             label = if (isKbOpen) "TOUCHPAD" else "TOUCHPAD SURFACE (SWIPE TO MOVE)",
                             modifier = Modifier
                                 .weight(1f)
@@ -255,6 +335,10 @@ fun ControllerScreen(
                         onDoubleTap = onLeftClick,
                         onLongPress = onRightClick,
                         onScroll = onScroll,
+                        theme = state.selectedTheme,
+                        customImagePath = state.customImagePath,
+                        dragLockActive = state.dragLockActive,
+                        onToggleDragLock = onToggleDragLock,
                         label = if (isKbOpen) "TRACKPAD" else "EXPANSIVE LAPTOP TRACKPAD",
                         modifier = Modifier
                             .fillMaxWidth()
@@ -285,6 +369,10 @@ fun ControllerScreen(
                             onDoubleTap = onLeftClick,
                             onLongPress = onRightClick,
                             onScroll = onScroll,
+                            theme = state.selectedTheme,
+                            customImagePath = state.customImagePath,
+                            dragLockActive = state.dragLockActive,
+                            onToggleDragLock = onToggleDragLock,
                             label = if (isKbOpen) "GESTURE PAD" else "FULL GESTURE SURFACE (TAP = CLICK)",
                             modifier = Modifier.fillMaxSize()
                         )
@@ -293,7 +381,7 @@ fun ControllerScreen(
                             Surface(
                                 color = DarkSurface.copy(alpha = 0.95f),
                                 shape = RoundedCornerShape(14.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
+                                border = BorderStroke(1.dp, BorderDark),
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
                                     .padding(14.dp)

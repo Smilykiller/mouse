@@ -6,6 +6,27 @@ enum class AppScreen {
     DEVICE_CONNECTION // Dedicated screen for device connectivity, connection status, Wi-Fi/BT checks & history
 }
 
+enum class AppNavTab(val title: String) {
+    TRACKPAD("Mousepad"),
+    THEMES("Themes"),
+    HELP("Help"),
+    SETTINGS("Settings")
+}
+
+enum class MousePadTheme(
+    val id: String,
+    val title: String,
+    val subtitle: String
+) {
+    STEALTH("stealth", "Stealth Dark", "Matte graphite with precision tech grid"),
+    CYBER_NEON("cyber_neon", "Cyber Neon", "Electric cyan & neon glow"),
+    FROSTED_GLASS("frosted_glass", "Frosted Glass", "Translucent glass with luminous edges"),
+    CARBON_FIBER("carbon_fiber", "Carbon Fiber", "Woven composite sports trackpad"),
+    SUNSET_AURA("sunset_aura", "Sunset Aura", "Cosmic violet & warm magenta glow"),
+    EMERALD_MATRIX("emerald_matrix", "Emerald Matrix", "Glowing matrix terminal theme"),
+    CUSTOM_PHOTO("custom_photo", "Custom Photo", "Your personalized gallery picture")
+}
+
 enum class TouchpadLayout(val label: String, val description: String) {
     SPLIT("Split Layout", "Large trackpad + dedicated scroll strip + twin click boxes"),
     CLASSIC("Classic Laptop", "Full-width trackpad with dual bottom click buttons"),

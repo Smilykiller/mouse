@@ -32,6 +32,9 @@ import java.util.UUID
 
 data class AirGlideUiState(
     val currentScreen: AppScreen = AppScreen.TRACKPAD,
+    val activeTab: com.example.model.AppNavTab = com.example.model.AppNavTab.TRACKPAD,
+    val selectedTheme: com.example.model.MousePadTheme = com.example.model.MousePadTheme.STEALTH,
+    val customImagePath: String? = null,
     val role: AppRole = AppRole.CONTROLLER,
     val layout: TouchpadLayout = TouchpadLayout.SPLIT,
     val connectionMode: ConnectionMode = ConnectionMode.WIFI_UDP,
@@ -139,10 +142,17 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
             com.example.model.KeyboardCatalog.DEFAULT_KEY_CODES
         }
 
+        val savedThemeId = sharedPrefs.getString("trackpad_theme", com.example.model.MousePadTheme.STEALTH.id)
+        val initialTheme = com.example.model.MousePadTheme.values().firstOrNull { it.id == savedThemeId }
+            ?: com.example.model.MousePadTheme.STEALTH
+        val savedImgPath = sharedPrefs.getString("custom_trackpad_image_path", null)
+
         _uiState.update {
             it.copy(
                 settings = initialSettings,
                 layout = initialLayout,
+                selectedTheme = initialTheme,
+                customImagePath = savedImgPath,
                 localIp = localIp,
                 deviceHistory = history,
                 isWifiEnabled = wifiOn,
@@ -229,7 +239,27 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // Navigation
+    // Navigation & Tab Selection
+    fun selectTab(tab: com.example.model.AppNavTab) {
+        _uiState.update { it.copy(activeTab = tab) }
+        refreshHardwareStatus()
+        discoveryManager.triggerScan()
+    }
+
+    fun selectTheme(theme: com.example.model.MousePadTheme) {
+        _uiState.update { it.copy(selectedTheme = theme) }
+        sharedPrefs.edit().putString("trackpad_theme", theme.id).apply()
+    }
+
+    fun setCustomTrackpadImage(path: String?) {
+        val theme = if (path != null) com.example.model.MousePadTheme.CUSTOM_PHOTO else com.example.model.MousePadTheme.STEALTH
+        _uiState.update { it.copy(customImagePath = path, selectedTheme = theme) }
+        sharedPrefs.edit()
+            .putString("custom_trackpad_image_path", path)
+            .putString("trackpad_theme", theme.id)
+            .apply()
+    }
+
     fun navigateTo(screen: AppScreen) {
         _uiState.update { it.copy(currentScreen = screen) }
         refreshHardwareStatus()

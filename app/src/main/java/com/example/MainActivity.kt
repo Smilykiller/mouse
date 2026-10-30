@@ -11,7 +11,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Mouse
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,19 +29,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.model.AppNavTab
 import com.example.model.AppRole
 import com.example.model.AppScreen
-import com.example.ui.components.AirGlideTopBar
 import com.example.ui.dialogs.DesktopScriptDialog
 import com.example.ui.dialogs.PermissionsAndSecurityDialog
 import com.example.ui.screens.ControllerScreen
 import com.example.ui.screens.DeviceConnectivityScreen
+import com.example.ui.screens.HelpScreen
 import com.example.ui.screens.HostReceiverScreen
 import com.example.ui.screens.HubSettingsScreen
+import com.example.ui.screens.ThemesScreen
 import com.example.ui.theme.AirGlideTheme
+import com.example.ui.theme.GrayMuted
+import com.example.ui.theme.GraySecondary
 import com.example.ui.theme.TrueBlack
+import com.example.ui.theme.WhitePrimary
 import com.example.viewmodel.AirGlideViewModel
 
 class MainActivity : ComponentActivity() {
@@ -88,34 +106,120 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
     var showScriptDialog by remember { mutableStateOf(false) }
     var showSecurityDialog by remember { mutableStateOf(false) }
 
-    // Always ensure the mobile app defaults to Controller mode
+    // Always ensure the mobile app defaults to Controller mode and Trackpad screen
     LaunchedEffect(Unit) {
         viewModel.setRole(AppRole.CONTROLLER)
+        viewModel.navigateTo(AppScreen.TRACKPAD)
     }
+
+    val cyanAccent = Color(0xFF06B6D4)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = TrueBlack,
-        topBar = {
-            if (uiState.currentScreen == AppScreen.HUB_SETTINGS) {
-                AirGlideTopBar(
-                    currentScreen = uiState.currentScreen,
-                    role = uiState.role,
-                    layout = uiState.layout,
-                    targetIp = uiState.settings.targetHostIp,
-                    targetPort = uiState.settings.targetPort,
-                    localIp = uiState.localIp,
-                    packetsSent = uiState.packetsSent,
-                    isKeyboardOpen = uiState.isKeyboardOpen,
-                    isNetworkConnected = uiState.isLocalNetworkActive,
-                    onNavigateBackToHub = { viewModel.navigateBack() },
-                    onOpenConnectivity = { viewModel.navigateTo(AppScreen.DEVICE_CONNECTION) },
-                    onRoleChange = { newRole -> viewModel.setRole(newRole) },
-                    onLayoutChange = { newLayout -> viewModel.setLayout(newLayout) },
-                    onToggleKeyboard = { viewModel.toggleKeyboard() },
-                    onOpenScriptModal = { showScriptDialog = true },
-                    onOpenSecurityModal = { showSecurityDialog = true }
-                )
+        bottomBar = {
+            // Modern bottom tab navigation (auto-hides when virtual keyboard is active to maximize mousepad space)
+            if (!uiState.isKeyboardOpen && uiState.currentScreen != AppScreen.DEVICE_CONNECTION) {
+                NavigationBar(
+                    containerColor = Color(0xFF10131B),
+                    tonalElevation = 8.dp
+                ) {
+                    // 1. Mousepad
+                    NavigationBarItem(
+                        selected = uiState.activeTab == AppNavTab.TRACKPAD,
+                        onClick = { viewModel.selectTab(AppNavTab.TRACKPAD) },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Mouse,
+                                contentDescription = "Mousepad",
+                                tint = if (uiState.activeTab == AppNavTab.TRACKPAD) cyanAccent else GrayMuted
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "Mousepad",
+                                fontSize = 11.sp,
+                                fontWeight = if (uiState.activeTab == AppNavTab.TRACKPAD) FontWeight.Bold else FontWeight.Normal,
+                                color = if (uiState.activeTab == AppNavTab.TRACKPAD) cyanAccent else GraySecondary
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = Color(0xFF1E293B)
+                        )
+                    )
+
+                    // 2. Themes
+                    NavigationBarItem(
+                        selected = uiState.activeTab == AppNavTab.THEMES,
+                        onClick = { viewModel.selectTab(AppNavTab.THEMES) },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = "Themes",
+                                tint = if (uiState.activeTab == AppNavTab.THEMES) cyanAccent else GrayMuted
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "Themes",
+                                fontSize = 11.sp,
+                                fontWeight = if (uiState.activeTab == AppNavTab.THEMES) FontWeight.Bold else FontWeight.Normal,
+                                color = if (uiState.activeTab == AppNavTab.THEMES) cyanAccent else GraySecondary
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = Color(0xFF1E293B)
+                        )
+                    )
+
+                    // 3. Help
+                    NavigationBarItem(
+                        selected = uiState.activeTab == AppNavTab.HELP,
+                        onClick = { viewModel.selectTab(AppNavTab.HELP) },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.HelpOutline,
+                                contentDescription = "Help",
+                                tint = if (uiState.activeTab == AppNavTab.HELP) cyanAccent else GrayMuted
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "Help",
+                                fontSize = 11.sp,
+                                fontWeight = if (uiState.activeTab == AppNavTab.HELP) FontWeight.Bold else FontWeight.Normal,
+                                color = if (uiState.activeTab == AppNavTab.HELP) cyanAccent else GraySecondary
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = Color(0xFF1E293B)
+                        )
+                    )
+
+                    // 4. Settings
+                    NavigationBarItem(
+                        selected = uiState.activeTab == AppNavTab.SETTINGS,
+                        onClick = { viewModel.selectTab(AppNavTab.SETTINGS) },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = if (uiState.activeTab == AppNavTab.SETTINGS) cyanAccent else GrayMuted
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "Settings",
+                                fontSize = 11.sp,
+                                fontWeight = if (uiState.activeTab == AppNavTab.SETTINGS) FontWeight.Bold else FontWeight.Normal,
+                                color = if (uiState.activeTab == AppNavTab.SETTINGS) cyanAccent else GraySecondary
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = Color(0xFF1E293B)
+                        )
+                    )
+                }
             }
         }
     ) { innerPadding ->
@@ -125,77 +229,91 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                 .padding(innerPadding)
                 .background(TrueBlack)
         ) {
-            when (uiState.currentScreen) {
-                AppScreen.HUB_SETTINGS -> {
-                    HubSettingsScreen(
-                        state = uiState,
-                        onNavigate = { screen -> viewModel.navigateTo(screen) },
-                        onUpdateSensitivity = { s -> viewModel.updateSensitivity(s) },
-                        onUpdateScrollSensitivity = { s -> viewModel.updateScrollSensitivity(s) },
-                        onToggleInvertScroll = { viewModel.toggleInvertScroll() },
-                        onToggleHaptics = { viewModel.toggleHaptics() },
-                        onToggleAirMotion = { viewModel.toggleAirMotion() },
-                        onCalibrateAirMotion = { viewModel.calibrateAirMotionCenter() },
-                        onUpdateAirMotionSensitivity = { s -> viewModel.updateAirMotionSensitivity(s) },
-                        onToggleVolumeButtons = { viewModel.toggleVolumeButtons() },
-                        onConnectToDiscoveredHost = { host -> viewModel.connectToDiscoveredHost(host) },
-                        onDisconnect = { viewModel.disconnectFromDevice() },
-                        onLayoutChange = { l -> viewModel.setLayout(l) },
-                        onRoleChange = { r -> viewModel.setRole(r) }
-                    )
-                }
+            if (uiState.currentScreen == AppScreen.DEVICE_CONNECTION) {
+                DeviceConnectivityScreen(
+                    state = uiState,
+                    onBack = { viewModel.navigateTo(AppScreen.TRACKPAD) },
+                    onConnectToIp = { ip, port ->
+                        viewModel.setTargetHostIp(ip)
+                        viewModel.setTargetPort(port)
+                    },
+                    onSelectDiscoveredHost = { host ->
+                        viewModel.connectToDiscoveredHost(host)
+                    },
+                    onDisconnect = { viewModel.disconnectFromDevice() },
+                    onSelectHistoryDevice = { historyItem ->
+                        viewModel.setTargetHostIp(historyItem.ipAddress, historyItem.name)
+                        viewModel.setTargetPort(historyItem.port)
+                    },
+                    onDeleteHistoryItem = { item -> viewModel.removeHistoryItem(item) },
+                    onSelectHostActiveDevice = { devId -> viewModel.selectHostActiveDevice(devId) },
+                    onOpenCompanionScript = { showScriptDialog = true },
+                    onRefreshHardware = {
+                        viewModel.refreshHardwareStatus()
+                        viewModel.triggerDiscoveryScan()
+                    }
+                )
+            } else {
+                // Categorized Tab Pages
+                when (uiState.activeTab) {
+                    AppNavTab.TRACKPAD -> {
+                        if (uiState.role == AppRole.CONTROLLER) {
+                            ControllerScreen(
+                                state = uiState,
+                                onBackToHub = { viewModel.selectTab(AppNavTab.SETTINGS) },
+                                onPointerMove = { dx, dy -> viewModel.onPointerMove(dx, dy) },
+                                onScroll = { delta -> viewModel.onScroll(delta) },
+                                onLeftClick = { viewModel.onLeftClick() },
+                                onRightClick = { viewModel.onRightClick() },
+                                onMiddleClick = { viewModel.onMiddleClick() },
+                                onToggleDragLock = { viewModel.toggleDragLock() },
+                                onKeyPress = { key -> viewModel.onKeyPress(key) },
+                                onSendText = { text -> viewModel.onTextEntered(text) },
+                                onKeyboardTextChange = { text -> viewModel.setKeyboardText(text) },
+                                onToggleKeyboard = { viewModel.toggleKeyboard() },
+                                onDisconnect = { viewModel.disconnectFromDevice() },
+                                onUpdateQuickKeys = { keys -> viewModel.updateQuickKeys(keys) },
+                                onResetQuickKeys = { viewModel.resetQuickKeys() }
+                            )
+                        } else {
+                            HostReceiverScreen(
+                                state = uiState,
+                                onSelectActiveDevice = { devId -> viewModel.selectHostActiveDevice(devId) }
+                            )
+                        }
+                    }
 
-                AppScreen.TRACKPAD -> {
-                    if (uiState.role == AppRole.CONTROLLER) {
-                        ControllerScreen(
-                            state = uiState,
-                            onBackToHub = { viewModel.navigateBack() },
-                            onPointerMove = { dx, dy -> viewModel.onPointerMove(dx, dy) },
-                            onScroll = { delta -> viewModel.onScroll(delta) },
-                            onLeftClick = { viewModel.onLeftClick() },
-                            onRightClick = { viewModel.onRightClick() },
-                            onMiddleClick = { viewModel.onMiddleClick() },
-                            onToggleDragLock = { viewModel.toggleDragLock() },
-                            onKeyPress = { key -> viewModel.onKeyPress(key) },
-                            onSendText = { text -> viewModel.onTextEntered(text) },
-                            onKeyboardTextChange = { text -> viewModel.setKeyboardText(text) },
-                            onToggleKeyboard = { viewModel.toggleKeyboard() },
-                            onDisconnect = { viewModel.disconnectFromDevice() },
-                            onUpdateQuickKeys = { keys -> viewModel.updateQuickKeys(keys) },
-                            onResetQuickKeys = { viewModel.resetQuickKeys() }
-                        )
-                    } else {
-                        HostReceiverScreen(
-                            state = uiState,
-                            onSelectActiveDevice = { devId -> viewModel.selectHostActiveDevice(devId) }
+                    AppNavTab.THEMES -> {
+                        ThemesScreen(
+                            currentTheme = uiState.selectedTheme,
+                            customImagePath = uiState.customImagePath,
+                            onSelectTheme = { theme -> viewModel.selectTheme(theme) },
+                            onSetCustomImage = { path -> viewModel.setCustomTrackpadImage(path) }
                         )
                     }
-                }
 
-                AppScreen.DEVICE_CONNECTION -> {
-                    DeviceConnectivityScreen(
-                        state = uiState,
-                        onBack = { viewModel.navigateBack() },
-                        onConnectToIp = { ip, port ->
-                            viewModel.setTargetHostIp(ip)
-                            viewModel.setTargetPort(port)
-                        },
-                        onSelectDiscoveredHost = { host ->
-                            viewModel.connectToDiscoveredHost(host)
-                        },
-                        onDisconnect = { viewModel.disconnectFromDevice() },
-                        onSelectHistoryDevice = { historyItem ->
-                            viewModel.setTargetHostIp(historyItem.ipAddress, historyItem.name)
-                            viewModel.setTargetPort(historyItem.port)
-                        },
-                        onDeleteHistoryItem = { item -> viewModel.removeHistoryItem(item) },
-                        onSelectHostActiveDevice = { devId -> viewModel.selectHostActiveDevice(devId) },
-                        onOpenCompanionScript = { showScriptDialog = true },
-                        onRefreshHardware = {
-                            viewModel.refreshHardwareStatus()
-                            viewModel.triggerDiscoveryScan()
-                        }
-                    )
+                    AppNavTab.HELP -> {
+                        HelpScreen()
+                    }
+
+                    AppNavTab.SETTINGS -> {
+                        HubSettingsScreen(
+                            state = uiState,
+                            onNavigate = { screen -> viewModel.navigateTo(screen) },
+                            onUpdateSensitivity = { s -> viewModel.updateSensitivity(s) },
+                            onUpdateScrollSensitivity = { s -> viewModel.updateScrollSensitivity(s) },
+                            onToggleInvertScroll = { viewModel.toggleInvertScroll() },
+                            onToggleHaptics = { viewModel.toggleHaptics() },
+                            onToggleAirMotion = { viewModel.toggleAirMotion() },
+                            onCalibrateAirMotion = { viewModel.calibrateAirMotionCenter() },
+                            onUpdateAirMotionSensitivity = { s -> viewModel.updateAirMotionSensitivity(s) },
+                            onToggleVolumeButtons = { viewModel.toggleVolumeButtons() },
+                            onConnectToDiscoveredHost = { host -> viewModel.connectToDiscoveredHost(host) },
+                            onDisconnect = { viewModel.disconnectFromDevice() },
+                            onLayoutChange = { l -> viewModel.setLayout(l) },
+                            onRoleChange = { r -> viewModel.setRole(r) }
+                        )
+                    }
                 }
             }
         }

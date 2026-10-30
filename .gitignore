@@ -46,3 +46,4 @@ __pycache__/
 *.png
 !Resources/*.png
 !desktop_receiver/Resources/*.png
+!app/src/main/res/**/*.png

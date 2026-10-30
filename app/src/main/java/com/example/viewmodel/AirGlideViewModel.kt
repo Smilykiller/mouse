@@ -167,6 +167,15 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
             ?: com.example.model.MousePadTheme.STEALTH
         val savedImgPath = sharedPrefs.getString("custom_trackpad_image_path", null)
 
+        val savedModeStr = sharedPrefs.getString("connection_mode", ConnectionMode.WIFI_UDP.name)
+        val initialMode = try {
+            ConnectionMode.valueOf(savedModeStr ?: ConnectionMode.WIFI_UDP.name)
+        } catch (_: Exception) {
+            ConnectionMode.WIFI_UDP
+        }
+        val lastBtAddr = sharedPrefs.getString("last_bt_address", null)
+        val lastBtName = sharedPrefs.getString("last_bt_name", null)
+
         _uiState.update {
             it.copy(
                 settings = initialSettings,
@@ -178,8 +187,17 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
                 isWifiEnabled = wifiOn,
                 isBluetoothEnabled = btOn,
                 isLocalNetworkActive = netConnected,
-                customQuickKeys = initialKeys
+                customQuickKeys = initialKeys,
+                connectionMode = initialMode,
+                activeHostName = if (initialMode == ConnectionMode.BLUETOOTH) (lastBtName ?: "Bluetooth Host") else (if (defaultTargetIp.isNotBlank()) defaultTargetIp else "PC Receiver")
             )
+        }
+
+        if (initialMode == ConnectionMode.BLUETOOTH) {
+            scanBluetoothDevices()
+            if (!lastBtAddr.isNullOrBlank() && !lastBtName.isNullOrBlank()) {
+                bluetoothClient.connect(lastBtAddr, lastBtName)
+            }
         }
 
         udpClient.configureTarget(defaultTargetIp, savedPort)
@@ -320,9 +338,11 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun dispatchCommand(command: RemoteCommand) {
-        if (_uiState.value.connectionMode == ConnectionMode.BLUETOOTH) {
-            bluetoothClient.send(command.toWireString(deviceId))
-        } else {
+        val wire = command.toWireString(deviceId)
+        if (_uiState.value.connectionMode == ConnectionMode.BLUETOOTH || bluetoothClient.isConnected.value) {
+            bluetoothClient.send(wire)
+        }
+        if (_uiState.value.connectionMode == ConnectionMode.WIFI_UDP) {
             udpClient.sendCommand(command)
         }
     }
@@ -333,6 +353,12 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun connectBluetooth(device: com.example.model.BluetoothDeviceInfo) {
+        sharedPrefs.edit()
+            .putString("connection_mode", ConnectionMode.BLUETOOTH.name)
+            .putString("last_bt_address", device.address)
+            .putString("last_bt_name", device.name)
+            .apply()
+
         _uiState.update {
             it.copy(
                 selectedBluetoothDevice = device,
@@ -349,13 +375,22 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setConnectionMode(mode: ConnectionMode) {
+        sharedPrefs.edit()
+            .putString("connection_mode", mode.name)
+            .apply()
+
         _uiState.update { it.copy(connectionMode = mode) }
         if (mode == ConnectionMode.BLUETOOTH) {
             scanBluetoothDevices()
+            val lastBtAddr = sharedPrefs.getString("last_bt_address", null)
+            val lastBtName = sharedPrefs.getString("last_bt_name", null)
+            if (!bluetoothClient.isConnected.value && !lastBtAddr.isNullOrBlank() && !lastBtName.isNullOrBlank()) {
+                bluetoothClient.connect(lastBtAddr, lastBtName)
+            }
             _uiState.update {
                 it.copy(
                     isLiveConnected = bluetoothClient.isConnected.value,
-                    activeHostName = bluetoothClient.connectedDeviceName.value ?: "Bluetooth Host"
+                    activeHostName = bluetoothClient.connectedDeviceName.value ?: (lastBtName ?: "Bluetooth Host")
                 )
             }
         } else {

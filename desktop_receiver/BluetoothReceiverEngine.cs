@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.IO.Ports;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,16 +12,23 @@ using Windows.Storage.Streams;
 namespace AirGlideDesktop
 {
     /// <summary>
-    /// Listens for incoming Bluetooth RFCOMM Serial Port Profile (SPP) connections from the mobile app.
-    /// Provides zero-Wi-Fi wireless control for travel, hotspots, and offline use.
+    /// Listens for incoming Bluetooth connections from the AirGlide mobile app.
+    /// Supports both RFCOMM StreamSockets (AirGlide custom UUID + standard SPP UUID)
+    /// and Windows Bluetooth Virtual Serial COM ports.
+    /// Provides 100% zero-Wi-Fi wireless control offline, during travel, or with mobile hotspot off.
     /// </summary>
     public class BluetoothReceiverEngine
     {
-        // Standard SPP UUID: 00001101-0000-1000-8000-00805F9B34FB
+        // Custom AirGlide dedicated RFCOMM UUID (never blocked or claimed by Windows OS drivers)
+        public static readonly Guid AirGlideUuid = new Guid("4a9b0001-1234-4abc-8def-0123456789ab");
+
+        // Standard Serial Port Profile (SPP) UUID
         public static readonly Guid SppUuid = new Guid("00001101-0000-1000-8000-00805F9B34FB");
 
-        private StreamSocketListener? _listener;
-        private RfcommServiceProvider? _provider;
+        private readonly List<RfcommServiceProvider> _providers = new();
+        private readonly List<StreamSocketListener> _listeners = new();
+        private readonly List<SerialPort> _serialPorts = new();
+
         private StreamSocket? _activeSocket;
         private DataWriter? _writer;
         private CancellationTokenSource? _cts;
@@ -36,32 +45,86 @@ namespace AirGlideDesktop
         {
             if (IsRunning) return;
 
+            _cts = new CancellationTokenSource();
+            bool anyListenerStarted = false;
+
+            // 1. Start Dedicated AirGlide RFCOMM Listener
             try
             {
-                _cts = new CancellationTokenSource();
+                var airglideProvider = await RfcommServiceProvider.CreateAsync(RfcommServiceId.FromUuid(AirGlideUuid));
+                SetSdpServiceName(airglideProvider, "AirGlide Remote (Direct)");
 
-                // Create the RFCOMM Service Provider for standard Serial Port
-                _provider = await RfcommServiceProvider.CreateAsync(RfcommServiceId.FromUuid(SppUuid));
+                var airglideListener = new StreamSocketListener();
+                airglideListener.ConnectionReceived += OnSocketConnectionReceived;
 
-                _listener = new StreamSocketListener();
-                _listener.ConnectionReceived += OnSocketConnectionReceived;
-
-                // Bind listener to the RFCOMM service
-                await _listener.BindServiceNameAsync(
-                    _provider.ServiceId.AsString(),
+                await airglideListener.BindServiceNameAsync(
+                    airglideProvider.ServiceId.AsString(),
                     SocketProtectionLevel.BluetoothEncryptionAllowNullAuthentication);
 
-                // Set SDP attributes so Android can discover this as an active SPP service
-                _provider.StartAdvertising(_listener);
+                airglideProvider.StartAdvertising(airglideListener, true);
 
-                IsRunning = true;
-                OnLog?.Invoke("Bluetooth RFCOMM listener started (SPP). Ready for phone pairing.");
+                _providers.Add(airglideProvider);
+                _listeners.Add(airglideListener);
+                anyListenerStarted = true;
+                OnLog?.Invoke("AirGlide direct Bluetooth RFCOMM listener active.");
             }
             catch (Exception ex)
             {
-                IsRunning = false;
-                OnLog?.Invoke($"Bluetooth notice: {ex.Message} (Bluetooth may be disabled or unequipped)");
+                OnLog?.Invoke($"Notice: Direct BT RFCOMM: {ex.Message}");
             }
+
+            // 2. Start Standard SPP RFCOMM Listener
+            try
+            {
+                var sppProvider = await RfcommServiceProvider.CreateAsync(RfcommServiceId.FromUuid(SppUuid));
+                SetSdpServiceName(sppProvider, "AirGlide SPP");
+
+                var sppListener = new StreamSocketListener();
+                sppListener.ConnectionReceived += OnSocketConnectionReceived;
+
+                await sppListener.BindServiceNameAsync(
+                    sppProvider.ServiceId.AsString(),
+                    SocketProtectionLevel.BluetoothEncryptionAllowNullAuthentication);
+
+                sppProvider.StartAdvertising(sppListener, true);
+
+                _providers.Add(sppProvider);
+                _listeners.Add(sppListener);
+                anyListenerStarted = true;
+                OnLog?.Invoke("Standard Bluetooth SPP RFCOMM listener active.");
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"Notice: Standard SPP RFCOMM: {ex.Message}");
+            }
+
+            // 3. Scan and start listening on Bluetooth Virtual Serial COM ports (if available)
+            StartSerialPortsMonitor();
+
+            IsRunning = anyListenerStarted || _serialPorts.Count > 0;
+            if (IsRunning)
+            {
+                OnLog?.Invoke("Bluetooth receiver ready for phone connection.");
+            }
+            else
+            {
+                OnLog?.Invoke("Bluetooth notice: No Bluetooth radio detected or Bluetooth is turned off.");
+            }
+        }
+
+        private static void SetSdpServiceName(RfcommServiceProvider provider, string serviceName)
+        {
+            try
+            {
+                var writer = new DataWriter();
+                // SDP string attribute header: 0x25 = text string with uint8 length
+                byte[] nameBytes = Encoding.UTF8.GetBytes(serviceName);
+                writer.WriteByte(0x25);
+                writer.WriteByte((byte)nameBytes.Length);
+                writer.WriteBytes(nameBytes);
+                provider.SdpRawAttributes.Add(0x0100, writer.DetachBuffer());
+            }
+            catch { }
         }
 
         private async void OnSocketConnectionReceived(StreamSocketListener sender, StreamSocketListenerConnectionReceivedEventArgs args)
@@ -75,7 +138,7 @@ namespace AirGlideDesktop
                 ConnectedDeviceName = remoteHost;
                 IsConnected = true;
                 OnConnectionStateChanged?.Invoke(true);
-                OnLog?.Invoke($"Bluetooth client connected: {remoteHost}");
+                OnLog?.Invoke($"Bluetooth phone connected: {remoteHost}");
 
                 using var reader = new DataReader(_activeSocket.InputStream)
                 {
@@ -86,13 +149,13 @@ namespace AirGlideDesktop
 
                 while (_cts?.IsCancellationRequested != true)
                 {
-                    uint bytesLoaded = await reader.LoadAsync(512);
+                    uint bytesLoaded = await reader.LoadAsync(1024);
                     if (bytesLoaded == 0) break; // Client disconnected
 
                     string chunk = reader.ReadString(bytesLoaded);
                     sb.Append(chunk);
 
-                    // Process complete lines separated by \n
+                    // Extract and dispatch all lines
                     while (true)
                     {
                         string buffer = sb.ToString();
@@ -106,7 +169,7 @@ namespace AirGlideDesktop
                         {
                             OnCommandReceived?.Invoke(line, ConnectedDeviceName);
 
-                            // Reply to ping or presence handshake
+                            // Reply to presence handshake
                             if (line.StartsWith("P:", StringComparison.Ordinal) && _writer != null)
                             {
                                 try
@@ -122,11 +185,86 @@ namespace AirGlideDesktop
             }
             catch (Exception ex)
             {
-                OnLog?.Invoke($"Bluetooth connection closed: {ex.Message}");
+                OnLog?.Invoke($"Bluetooth connection ended: {ex.Message}");
             }
             finally
             {
                 DisconnectClient();
+            }
+        }
+
+        private void StartSerialPortsMonitor()
+        {
+            Task.Run(async () =>
+            {
+                while (_cts?.IsCancellationRequested != true)
+                {
+                    try
+                    {
+                        string[] portNames = SerialPort.GetPortNames();
+                        foreach (string port in portNames)
+                        {
+                            // Avoid re-opening ports already managed
+                            if (_serialPorts.Exists(p => p.PortName.Equals(port, StringComparison.OrdinalIgnoreCase)))
+                                continue;
+
+                            TryOpenSerialPort(port);
+                        }
+                    }
+                    catch { }
+
+                    await Task.Delay(5000);
+                }
+            });
+        }
+
+        private void TryOpenSerialPort(string portName)
+        {
+            try
+            {
+                var sp = new SerialPort(portName, 115200, Parity.None, 8, StopBits.One)
+                {
+                    ReadTimeout = 500,
+                    WriteTimeout = 500,
+                    NewLine = "\n"
+                };
+
+                sp.DataReceived += (s, e) =>
+                {
+                    try
+                    {
+                        while (sp.IsOpen && sp.BytesToRead > 0)
+                        {
+                            string line = sp.ReadLine().Trim();
+                            if (!string.IsNullOrEmpty(line))
+                            {
+                                if (!IsConnected)
+                                {
+                                    IsConnected = true;
+                                    ConnectedDeviceName = portName;
+                                    OnConnectionStateChanged?.Invoke(true);
+                                    OnLog?.Invoke($"Serial Bluetooth port connected: {portName}");
+                                }
+
+                                OnCommandReceived?.Invoke(line, portName);
+
+                                if (line.StartsWith("P:", StringComparison.Ordinal))
+                                {
+                                    sp.WriteLine("AIRGLIDE_ACK:Bluetooth");
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                };
+
+                sp.Open();
+                _serialPorts.Add(sp);
+                OnLog?.Invoke($"Listening on serial port {portName} for Bluetooth link.");
+            }
+            catch
+            {
+                // Port might be in use by another device or not accessible; ignore
             }
         }
 
@@ -146,11 +284,24 @@ namespace AirGlideDesktop
             _cts?.Cancel();
             DisconnectClient();
 
-            try { _provider?.StopAdvertising(); } catch { }
-            try { _listener?.Dispose(); } catch { }
+            foreach (var sp in _serialPorts)
+            {
+                try { if (sp.IsOpen) sp.Close(); sp.Dispose(); } catch { }
+            }
+            _serialPorts.Clear();
 
-            _provider = null;
-            _listener = null;
+            foreach (var provider in _providers)
+            {
+                try { provider.StopAdvertising(); } catch { }
+            }
+            _providers.Clear();
+
+            foreach (var listener in _listeners)
+            {
+                try { listener.Dispose(); } catch { }
+            }
+            _listeners.Clear();
+
             IsRunning = false;
             OnLog?.Invoke("Bluetooth receiver stopped.");
         }

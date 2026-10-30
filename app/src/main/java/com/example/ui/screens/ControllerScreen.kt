@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.model.ConnectionMode
 import com.example.model.TouchpadLayout
 import com.example.ui.components.RemoteKeyboardBar
 import com.example.ui.components.ScrollStrip
@@ -135,30 +136,65 @@ fun ControllerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 1. Back to Settings Button (Top Left Only)
+                // 1. Back to Settings & Connection Mode Indicator
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(CardDark)
-                        .border(BorderStroke(1.dp, BorderDark), RoundedCornerShape(10.dp))
-                        .clickable { onBackToHub() }
-                        .padding(horizontal = 12.dp, vertical = 7.dp)
-                        .testTag("controller_back_button")
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Settings",
-                        tint = WhitePrimary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Settings",
-                        fontSize = 12.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WhitePrimary
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(CardDark)
+                            .border(BorderStroke(1.dp, BorderDark), RoundedCornerShape(10.dp))
+                            .clickable { onBackToHub() }
+                            .padding(horizontal = 10.dp, vertical = 7.dp)
+                            .testTag("controller_back_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Settings",
+                            tint = WhitePrimary,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Settings",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = WhitePrimary
+                        )
+                    }
+
+                    // Connection Status & Mode Badge
+                    val isBt = state.connectionMode == ConnectionMode.BLUETOOTH
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (state.isLiveConnected) Color(0xFF0F291E) else CardDark,
+                        border = BorderStroke(1.dp, if (state.isLiveConnected) DotGreenMild else BorderDark),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onBackToHub() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (state.isLiveConnected) DotGreenMild else DotAmberMild)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isBt) "ᛒ BT" else "📶 WiFi",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (state.isLiveConnected) DotGreenMild else GraySecondary
+                            )
+                        }
+                    }
                 }
 
                 // 2. Center: Quick Tools Cluster (Air Mouse, Display Jump, Auto-Scroll)

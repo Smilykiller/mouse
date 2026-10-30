@@ -30,5 +30,9 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" Version="10.0.14" />
+  </ItemGroup>
+
 </Project>
 

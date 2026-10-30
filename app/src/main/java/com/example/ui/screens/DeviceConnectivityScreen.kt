@@ -72,6 +72,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.AppRole
+import com.example.model.BluetoothDeviceInfo
+import com.example.model.ConnectionMode
 import com.example.model.DeviceHistoryItem
 import com.example.model.DiscoveredHost
 import com.example.network.NetworkUtils
@@ -101,6 +103,10 @@ fun DeviceConnectivityScreen(
     onOpenCompanionScript: () -> Unit,
     onRefreshHardware: () -> Unit,
     onDisconnect: () -> Unit = {},
+    onSelectConnectionMode: (ConnectionMode) -> Unit = {},
+    onScanBluetooth: () -> Unit = {},
+    onConnectBluetooth: (BluetoothDeviceInfo) -> Unit = {},
+    onDisconnectBluetooth: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BackHandler { onBack() }
@@ -216,12 +222,18 @@ fun DeviceConnectivityScreen(
                             }
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = if (state.isLiveConnected)
-                                    "Linked: ${state.activeHostName} (${state.settings.targetHostIp}:${state.settings.targetPort})"
-                                else if (state.isLocalNetworkActive)
+                                text = if (state.isLiveConnected) {
+                                    if (state.connectionMode == ConnectionMode.BLUETOOTH)
+                                        "Bluetooth Linked: ${state.activeHostName}"
+                                    else
+                                        "Linked: ${state.activeHostName} (${state.settings.targetHostIp}:${state.settings.targetPort})"
+                                } else if (state.connectionMode == ConnectionMode.BLUETOOTH) {
+                                    "Bluetooth: ${state.bluetoothStatus}"
+                                } else if (state.isLocalNetworkActive) {
                                     "Target: ${state.settings.targetHostIp}:${state.settings.targetPort} (Open Laptop App)"
-                                else
-                                    "Wi-Fi or Mobile Hotspot connection required",
+                                } else {
+                                    "Wi-Fi or Bluetooth connection required"
+                                },
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace,
                                 color = GraySecondary
@@ -263,6 +275,172 @@ fun DeviceConnectivityScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFFF87171)
                                     )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Connection Mode Switcher (Wi-Fi vs Bluetooth)
+            if (state.role == AppRole.CONTROLLER) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Wi-Fi Option
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (state.connectionMode == ConnectionMode.WIFI_UDP) Color(0xFF131A26) else CardDark,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.5.dp,
+                            if (state.connectionMode == ConnectionMode.WIFI_UDP) Color(0xFF38BDF8) else BorderDark
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelectConnectionMode(ConnectionMode.WIFI_UDP) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Wifi,
+                                contentDescription = null,
+                                tint = if (state.connectionMode == ConnectionMode.WIFI_UDP) Color(0xFF38BDF8) else GrayMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text("Wi-Fi / Hotspot", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WhitePrimary)
+                                Text("Ultra-fast UDP", fontSize = 10.sp, color = GraySecondary)
+                            }
+                        }
+                    }
+
+                    // Bluetooth Option
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (state.connectionMode == ConnectionMode.BLUETOOTH) Color(0xFF131A26) else CardDark,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.5.dp,
+                            if (state.connectionMode == ConnectionMode.BLUETOOTH) Color(0xFF38BDF8) else BorderDark
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                onSelectConnectionMode(ConnectionMode.BLUETOOTH)
+                                onScanBluetooth()
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Bluetooth,
+                                contentDescription = null,
+                                tint = if (state.connectionMode == ConnectionMode.BLUETOOTH) Color(0xFF38BDF8) else GrayMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text("Bluetooth", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WhitePrimary)
+                                Text("Zero Wi-Fi", fontSize = 10.sp, color = GraySecondary)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Bluetooth Devices List (Shown when Bluetooth Mode is selected)
+            if (state.connectionMode == ConnectionMode.BLUETOOTH && state.role == AppRole.CONTROLLER) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = CardDark,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E293B)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Bluetooth, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("BLUETOOTH DEVICES (ZERO WI-FI)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WhitePrimary, letterSpacing = 1.sp)
+                            }
+
+                            IconButton(
+                                onClick = onScanBluetooth,
+                                modifier = Modifier.size(30.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Status: ${state.bluetoothStatus}",
+                            fontSize = 11.5.sp,
+                            color = if (state.isLiveConnected) DotGreenMild else GraySecondary
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        if (state.bluetoothDevices.isEmpty()) {
+                            Text(
+                                text = "No paired Bluetooth devices found.\n\n💡 How to connect via Bluetooth:\n1. Pair your phone with your Windows laptop in Android Settings > Bluetooth.\n2. Tap the Refresh icon above.\n3. Tap Connect beside your laptop name.",
+                                fontSize = 12.sp,
+                                color = GraySecondary,
+                                lineHeight = 17.sp
+                            )
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                state.bluetoothDevices.forEach { device ->
+                                    val isConnectedToThis = state.isLiveConnected && (state.selectedBluetoothDevice?.address == device.address || state.activeHostName.contains(device.name, ignoreCase = true))
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (isConnectedToThis) ElevatedSurface else DarkSurface,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isConnectedToThis) DotGreenMild else BorderDark),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(device.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = WhitePrimary)
+                                                Text(device.address, fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = GrayMuted)
+                                            }
+
+                                            if (isConnectedToThis) {
+                                                OutlinedButton(
+                                                    onClick = onDisconnectBluetooth,
+                                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444)),
+                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.height(34.dp)
+                                                ) {
+                                                    Text("Disconnect", fontSize = 11.sp)
+                                                }
+                                            } else {
+                                                Button(
+                                                    onClick = { onConnectBluetooth(device) },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.height(34.dp)
+                                                ) {
+                                                    Text("Connect", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

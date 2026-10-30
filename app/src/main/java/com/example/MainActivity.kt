@@ -316,7 +316,11 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                     onRefreshHardware = {
                         viewModel.refreshHardwareStatus()
                         viewModel.triggerDiscoveryScan()
-                    }
+                    },
+                    onSelectConnectionMode = { mode -> viewModel.setConnectionMode(mode) },
+                    onScanBluetooth = { viewModel.scanBluetoothDevices() },
+                    onConnectBluetooth = { device -> viewModel.connectBluetooth(device) },
+                    onDisconnectBluetooth = { viewModel.disconnectBluetooth() }
                 )
             } else {
                 // Categorized Tab Pages

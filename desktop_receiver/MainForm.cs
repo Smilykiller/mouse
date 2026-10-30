@@ -466,6 +466,7 @@ namespace AirGlideDesktop
             _btnDisconnectPhone.Click += (s, e) =>
             {
                 _engine.ReleaseController();
+                _btEngine.DisconnectClient();
                 AppendLogSafe("Phone disconnected by user.");
                 UpdateUiFromState();
             };
@@ -491,11 +492,13 @@ namespace AirGlideDesktop
                 {
                     _engine.ReleaseController();
                     _engine.Stop();
+                    _btEngine.Stop();
                     AppendLogSafe("Receiver stopped by user (Turned off).");
                 }
                 else
                 {
                     _engine.Start();
+                    _ = _btEngine.StartAsync();
                     AppendLogSafe("Receiver started by user (Listening).");
                 }
                 UpdateUiFromState();
@@ -1193,12 +1196,14 @@ namespace AirGlideDesktop
             {
                 _engine.ReleaseController();
                 _engine.Stop();
+                _btEngine.Stop();
                 AppendLogSafe("Receiver stopped from tray menu.");
                 UpdateUiFromState();
             });
             _trayMenu.Items.Add("Start Server", null, (s, e) =>
             {
                 _engine.Start();
+                _ = _btEngine.StartAsync();
                 AppendLogSafe("Receiver started from tray menu.");
                 UpdateUiFromState();
             });
@@ -1207,6 +1212,7 @@ namespace AirGlideDesktop
             {
                 _refreshTimer?.Stop();
                 _engine?.Stop();
+                _btEngine?.Stop();
                 if (_trayIcon != null)
                 {
                     _trayIcon.Visible = false;

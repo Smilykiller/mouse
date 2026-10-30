@@ -8,8 +8,9 @@ enum class AppScreen {
 
 enum class AppNavTab(val title: String) {
     TRACKPAD("Mousepad"),
+    DECK("Deck & Tools"),
+    ECOSYSTEM("Ecosystem"),
     THEMES("Themes"),
-    HELP("Help"),
     SETTINGS("Settings")
 }
 
@@ -64,6 +65,10 @@ sealed class RemoteCommand {
     data class Scroll(val delta: Float) : RemoteCommand()
     data class Key(val keyName: String) : RemoteCommand()
     data class Text(val content: String) : RemoteCommand()
+    data class Action(val actionId: String) : RemoteCommand()
+    data class DisplayJump(val target: String = "next") : RemoteCommand()
+    data class ClipboardSync(val base64Text: String) : RemoteCommand()
+    data class TabSwitch(val direction: Int) : RemoteCommand()
     data class Presence(val deviceId: String, val deviceName: String) : RemoteCommand()
     object Disconnect : RemoteCommand()
 
@@ -76,6 +81,10 @@ sealed class RemoteCommand {
             is Scroll -> "S:${Math.round(delta)}:$deviceId"
             is Key -> "K:$keyName:$deviceId"
             is Text -> "T:${content.replace("\\", "\\\\").replace(":", "\\:").replace("\n", "\\n")}:$deviceId"
+            is Action -> "A:$actionId:$deviceId"
+            is DisplayJump -> "J:$target:$deviceId"
+            is ClipboardSync -> "B:$base64Text:$deviceId"
+            is TabSwitch -> "W:$direction:$deviceId"
             is Presence -> "P:$deviceId:${deviceName.replace(":", "-")}"
             is Disconnect -> "X:bye:$deviceId"
         }

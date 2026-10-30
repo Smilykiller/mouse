@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Windows.Forms;
 
 namespace AirGlideDesktop
 {
@@ -18,6 +22,22 @@ namespace AirGlideDesktop
 
         [DllImport("user32.dll")]
         private static extern short VkKeyScan(char ch);
+
+        [DllImport("user32.dll")]
+        public static extern bool LockWorkStation();
+
+        [DllImport("user32.dll")]
+        private static extern bool SetCursorPos(int X, int Y);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out POINT lpPoint);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT
+        {
+            public int X;
+            public int Y;
+        }
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern IntPtr OpenInputDesktop(uint dwFlags, bool fInherit, uint dwDesiredAccess);
@@ -336,6 +356,184 @@ namespace AirGlideDesktop
                     }
                 }
             }
+        }
+
+        public static void DisplayJump()
+        {
+            try
+            {
+                Screen[] screens = Screen.AllScreens;
+                if (screens.Length <= 1) return;
+
+                GetCursorPos(out POINT pt);
+                Point current = new Point(pt.X, pt.Y);
+                int currentIndex = 0;
+                for (int i = 0; i < screens.Length; i++)
+                {
+                    if (screens[i].Bounds.Contains(current))
+                    {
+                        currentIndex = i;
+                        break;
+                    }
+                }
+
+                int nextIndex = (currentIndex + 1) % screens.Length;
+                Rectangle nextBounds = screens[nextIndex].Bounds;
+                int targetX = nextBounds.X + nextBounds.Width / 2;
+                int targetY = nextBounds.Y + nextBounds.Height / 2;
+                SetCursorPos(targetX, targetY);
+            }
+            catch { }
+        }
+
+        public static void SwitchBrowserTab(int direction)
+        {
+            try
+            {
+                if (direction > 0)
+                {
+                    // Next Tab: Ctrl + Tab
+                    keybd_event(0x11, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x09, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x09, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x11, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                }
+                else
+                {
+                    // Prev Tab: Ctrl + Shift + Tab
+                    keybd_event(0x11, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x10, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x09, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x09, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x10, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x11, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                }
+            }
+            catch { }
+        }
+
+        public static void SetClipboard(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            Thread t = new Thread(() =>
+            {
+                try
+                {
+                    Clipboard.SetText(text);
+                }
+                catch { }
+            });
+            t.SetApartmentState(ApartmentState.STA);
+            t.Start();
+        }
+
+        public static void ExecuteAction(string actionId)
+        {
+            string act = actionId.ToUpperInvariant().Trim();
+            switch (act)
+            {
+                case "CHROME":
+                    TryLaunch("chrome.exe", "https://google.com");
+                    break;
+                case "VSCODE":
+                    TryLaunch("code", "");
+                    break;
+                case "SPOTIFY":
+                    TryLaunch("spotify.exe", "");
+                    break;
+                case "TERMINAL":
+                    TryLaunch("wt.exe", "");
+                    break;
+                case "POWERSHELL":
+                    TryLaunch("powershell.exe", "");
+                    break;
+                case "EXPLORER":
+                    TryLaunch("explorer.exe", "");
+                    break;
+                case "TASKMGR":
+                    TryLaunch("taskmgr.exe", "");
+                    break;
+                case "LOCK":
+                    LockWorkStation();
+                    break;
+                case "DESKTOP":
+                    // Win + D
+                    keybd_event(0x5B, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x44, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x44, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x5B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "SCREENSHOT":
+                    // Win + Shift + S
+                    keybd_event(0x5B, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x10, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x53, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x53, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x10, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x5B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "MEDIA_PLAY_PAUSE":
+                    keybd_event(0xB3, 0, 0, UIntPtr.Zero);
+                    keybd_event(0xB3, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "MEDIA_NEXT":
+                    keybd_event(0xB0, 0, 0, UIntPtr.Zero);
+                    keybd_event(0xB0, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "MEDIA_PREV":
+                    keybd_event(0xB1, 0, 0, UIntPtr.Zero);
+                    keybd_event(0xB1, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "VOLUME_MUTE":
+                    keybd_event(0xAD, 0, 0, UIntPtr.Zero);
+                    keybd_event(0xAD, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "VOLUME_UP":
+                    keybd_event(0xAF, 0, 0, UIntPtr.Zero);
+                    keybd_event(0xAF, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "VOLUME_DOWN":
+                    keybd_event(0xAE, 0, 0, UIntPtr.Zero);
+                    keybd_event(0xAE, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "CLOSE_APP":
+                    // Alt + F4
+                    keybd_event(0x12, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x73, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x73, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x12, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "FORMAT_CODE":
+                    // Shift + Alt + F
+                    keybd_event(0x10, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x12, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x46, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x46, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x12, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x10, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "MAGNIFIER":
+                    // Win + Plus
+                    keybd_event(0x5B, 0, 0, UIntPtr.Zero);
+                    keybd_event(0xBB, 0, 0, UIntPtr.Zero);
+                    keybd_event(0xBB, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x5B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+            }
+        }
+
+        private static void TryLaunch(string fileName, string args)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = fileName,
+                    Arguments = args,
+                    UseShellExecute = true
+                });
+            }
+            catch { }
         }
     }
 }

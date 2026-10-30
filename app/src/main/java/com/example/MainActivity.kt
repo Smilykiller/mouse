@@ -11,20 +11,31 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,11 +43,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.model.AppNavTab
 import com.example.model.AppRole
@@ -44,12 +58,15 @@ import com.example.model.AppScreen
 import com.example.ui.dialogs.DesktopScriptDialog
 import com.example.ui.dialogs.PermissionsAndSecurityDialog
 import com.example.ui.screens.ControllerScreen
+import com.example.ui.screens.DeckScreen
 import com.example.ui.screens.DeviceConnectivityScreen
+import com.example.ui.screens.EcosystemScreen
 import com.example.ui.screens.HelpScreen
 import com.example.ui.screens.HostReceiverScreen
 import com.example.ui.screens.HubSettingsScreen
 import com.example.ui.screens.ThemesScreen
 import com.example.ui.theme.AirGlideTheme
+import com.example.ui.theme.BorderDark
 import com.example.ui.theme.GrayMuted
 import com.example.ui.theme.GraySecondary
 import com.example.ui.theme.TrueBlack
@@ -109,6 +126,7 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
 
     var showScriptDialog by remember { mutableStateOf(false) }
     var showSecurityDialog by remember { mutableStateOf(false) }
+    var showFullHelpDialog by remember { mutableStateOf(false) }
 
     val btPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -171,7 +189,55 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                         )
                     )
 
-                    // 2. Themes
+                    // 2. Stream Deck & Tools
+                    NavigationBarItem(
+                        selected = uiState.activeTab == AppNavTab.DECK,
+                        onClick = { viewModel.selectTab(AppNavTab.DECK) },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Dashboard,
+                                contentDescription = "Deck",
+                                tint = if (uiState.activeTab == AppNavTab.DECK) cyanAccent else GrayMuted
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "Deck",
+                                fontSize = 11.sp,
+                                fontWeight = if (uiState.activeTab == AppNavTab.DECK) FontWeight.Bold else FontWeight.Normal,
+                                color = if (uiState.activeTab == AppNavTab.DECK) cyanAccent else GraySecondary
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = Color(0xFF1E293B)
+                        )
+                    )
+
+                    // 3. Ecosystem
+                    NavigationBarItem(
+                        selected = uiState.activeTab == AppNavTab.ECOSYSTEM,
+                        onClick = { viewModel.selectTab(AppNavTab.ECOSYSTEM) },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = "Ecosystem",
+                                tint = if (uiState.activeTab == AppNavTab.ECOSYSTEM) cyanAccent else GrayMuted
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "Ecosystem",
+                                fontSize = 11.sp,
+                                fontWeight = if (uiState.activeTab == AppNavTab.ECOSYSTEM) FontWeight.Bold else FontWeight.Normal,
+                                color = if (uiState.activeTab == AppNavTab.ECOSYSTEM) cyanAccent else GraySecondary
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = Color(0xFF1E293B)
+                        )
+                    )
+
+                    // 4. Themes
                     NavigationBarItem(
                         selected = uiState.activeTab == AppNavTab.THEMES,
                         onClick = { viewModel.selectTab(AppNavTab.THEMES) },
@@ -195,31 +261,7 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                         )
                     )
 
-                    // 3. Help
-                    NavigationBarItem(
-                        selected = uiState.activeTab == AppNavTab.HELP,
-                        onClick = { viewModel.selectTab(AppNavTab.HELP) },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.HelpOutline,
-                                contentDescription = "Help",
-                                tint = if (uiState.activeTab == AppNavTab.HELP) cyanAccent else GrayMuted
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = "Help",
-                                fontSize = 11.sp,
-                                fontWeight = if (uiState.activeTab == AppNavTab.HELP) FontWeight.Bold else FontWeight.Normal,
-                                color = if (uiState.activeTab == AppNavTab.HELP) cyanAccent else GraySecondary
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            indicatorColor = Color(0xFF1E293B)
-                        )
-                    )
-
-                    // 4. Settings
+                    // 5. Settings
                     NavigationBarItem(
                         selected = uiState.activeTab == AppNavTab.SETTINGS,
                         onClick = { viewModel.selectTab(AppNavTab.SETTINGS) },
@@ -297,9 +339,14 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                                 onDisconnect = { viewModel.disconnectFromDevice() },
                                 onLeftDown = { viewModel.onLeftDown() },
                                 onLeftUp = { viewModel.onLeftUp() },
+                                onToggleAirMotion = { viewModel.toggleAirMotion() },
+                                onJumpDisplay = { viewModel.jumpDisplay() },
+                                onSwitchTab = { dir -> viewModel.switchTab(dir) },
+                                onSetAutoScrollSpeed = { spd -> viewModel.setAutoScrollSpeed(spd) },
+                                onStopAutoScroll = { viewModel.stopAutoScroll() },
                                 onUpdateQuickKeys = { keys -> viewModel.updateQuickKeys(keys) },
                                 onResetQuickKeys = { viewModel.resetQuickKeys() },
-                                onOpenFullHelp = { viewModel.selectTab(AppNavTab.HELP) }
+                                onOpenFullHelp = { showFullHelpDialog = true }
                             )
                         } else {
                             HostReceiverScreen(
@@ -307,6 +354,28 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                                 onSelectActiveDevice = { devId -> viewModel.selectHostActiveDevice(devId) }
                             )
                         }
+                    }
+
+                    AppNavTab.DECK -> {
+                        DeckScreen(
+                            state = uiState,
+                            onTriggerAction = { act -> viewModel.triggerAction(act) },
+                            onJumpDisplay = { viewModel.jumpDisplay() },
+                            onSwitchTab = { dir -> viewModel.switchTab(dir) },
+                            onSetAutoScrollSpeed = { spd -> viewModel.setAutoScrollSpeed(spd) },
+                            onStopAutoScroll = { viewModel.stopAutoScroll() }
+                        )
+                    }
+
+                    AppNavTab.ECOSYSTEM -> {
+                        val context = LocalContext.current
+                        EcosystemScreen(
+                            state = uiState,
+                            onSyncClipboard = { text -> viewModel.syncClipboardToPc(text) },
+                            onUploadFile = { uri -> viewModel.uploadFileToPc(uri, context.contentResolver) },
+                            onToggleWalkAwayLock = { viewModel.toggleWalkAwayLock() },
+                            onUnlockPc = { viewModel.onKeyPress("ENTER") }
+                        )
                     }
 
                     AppNavTab.THEMES -> {
@@ -318,10 +387,6 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                             onSetCustomImage = { path -> viewModel.setCustomTrackpadImage(path) },
                             onSelectLayout = { layout -> viewModel.setLayout(layout) }
                         )
-                    }
-
-                    AppNavTab.HELP -> {
-                        HelpScreen()
                     }
 
                     AppNavTab.SETTINGS -> {
@@ -347,6 +412,44 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                             onOpenMousepad = { viewModel.selectTab(AppNavTab.TRACKPAD) }
                         )
                     }
+                }
+            }
+        }
+    }
+
+    if (showFullHelpDialog) {
+        Dialog(onDismissRequest = { showFullHelpDialog = false }) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(vertical = 24.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = TrueBlack,
+                border = BorderStroke(1.dp, BorderDark)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Gesture & Shortcut Guide",
+                            fontWeight = FontWeight.Bold,
+                            color = WhitePrimary,
+                            fontSize = 16.sp
+                        )
+                        IconButton(onClick = { showFullHelpDialog = false }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = WhitePrimary
+                            )
+                        }
+                    }
+                    HelpScreen(modifier = Modifier.weight(1f))
                 }
             }
         }

@@ -25,9 +25,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DesktopWindows
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mouse
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Tab
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -87,6 +90,11 @@ fun ControllerScreen(
     onDisconnect: () -> Unit,
     onLeftDown: () -> Unit = {},
     onLeftUp: () -> Unit = {},
+    onToggleAirMotion: () -> Unit = {},
+    onJumpDisplay: () -> Unit = {},
+    onSwitchTab: (Int) -> Unit = {},
+    onSetAutoScrollSpeed: (Float) -> Unit = {},
+    onStopAutoScroll: () -> Unit = {},
     onUpdateQuickKeys: (List<String>) -> Unit = {},
     onResetQuickKeys: () -> Unit = {},
     onOpenFullHelp: () -> Unit = {},
@@ -153,7 +161,79 @@ fun ControllerScreen(
                     )
                 }
 
-                // 2. Right End: Compact Keyboard & Small Help Button
+                // 2. Center: Quick Tools Cluster (Air Mouse, Display Jump, Auto-Scroll)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Air Mouse Toggle
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (state.isAirMotionActive) Color(0xFF0284C7) else CardDark,
+                        border = BorderStroke(1.dp, if (state.isAirMotionActive) Color(0xFF38BDF8) else BorderDark),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onToggleAirMotion() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (state.isAirMotionActive) "🪄 AIR ON" else "🪄 AIR",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (state.isAirMotionActive) Color.White else GraySecondary
+                            )
+                        }
+                    }
+
+                    // Display Jump
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = CardDark,
+                        border = BorderStroke(1.dp, BorderDark),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onJumpDisplay() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.DesktopWindows, contentDescription = "Display Jump", tint = Color(0xFF38BDF8), modifier = Modifier.size(13.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("🖥️", fontSize = 10.5.sp)
+                        }
+                    }
+
+                    // Auto-Scroll Quick Toggle
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (state.isAutoScrolling) DotGreenMild.copy(alpha = 0.2f) else CardDark,
+                        border = BorderStroke(1.dp, if (state.isAutoScrolling) DotGreenMild else BorderDark),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                if (state.isAutoScrolling) onStopAutoScroll()
+                                else onSetAutoScrollSpeed(2.0f)
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (state.isAutoScrolling) "📜 ON" else "📜 SCROLL",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (state.isAutoScrolling) DotGreenMild else GraySecondary
+                            )
+                        }
+                    }
+                }
+
+                // 3. Right End: Compact Keyboard & Small Help Button
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically

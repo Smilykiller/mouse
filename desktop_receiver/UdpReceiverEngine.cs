@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -47,6 +48,9 @@ namespace AirGlideDesktop
 
         private string _localIp = "127.0.0.1";
         private DateTime _localIpAtUtc = DateTime.MinValue;
+
+        private TcpListener? _fileServer;
+        public const int FileDropPort = 5056;
 
         public int Port { get; private set; } = DefaultPort;
         public bool IsRunning { get; private set; } = false;
@@ -112,6 +116,18 @@ namespace AirGlideDesktop
 
                 CancellationToken token = _cts.Token;
                 Task.Run(() => BeaconLoop(token));
+
+                try
+                {
+                    _fileServer = new TcpListener(IPAddress.Any, FileDropPort);
+                    _fileServer.Start();
+                    Task.Run(() => FileServerLoop(token));
+                    OnLog?.Invoke($"File drop server ready on TCP port {FileDropPort}");
+                }
+                catch (Exception ex)
+                {
+                    OnLog?.Invoke($"File drop server notice: {ex.Message}");
+                }
             }
             catch (Exception ex)
             {
@@ -130,7 +146,9 @@ namespace AirGlideDesktop
             IsRunning = false;
             try { _cts?.Cancel(); } catch { }
             try { _listener?.Close(); } catch { }
+            try { _fileServer?.Stop(); } catch { }
             _listener = null;
+            _fileServer = null;
 
             OnRunningStateChanged?.Invoke(false);
             OnLog?.Invoke("Receiver stopped.");
@@ -252,7 +270,7 @@ namespace AirGlideDesktop
             int first = msg.IndexOf(':');
             if (first != 1) return false;                 // commands are exactly one letter
             cmd = msg.Substring(0, 1);
-            if ("MCDUSKTPX".IndexOf(cmd[0]) < 0) return false;
+            if ("MCDUSKTPXAJBW".IndexOf(cmd[0]) < 0) return false;
 
             string rest = msg.Substring(first + 1);
 
@@ -409,6 +427,112 @@ namespace AirGlideDesktop
                     NativeInput.TypeText(text);
                     OnPacketProcessed?.Invoke("TEXT", text);
                     break;
+                }
+                case "A":
+                    NativeInput.ExecuteAction(payload);
+                    OnPacketProcessed?.Invoke("ACTION", payload);
+                    break;
+                case "J":
+                    NativeInput.DisplayJump();
+                    OnPacketProcessed?.Invoke("DISPLAY_JUMP", payload);
+                    break;
+                case "B":
+                    try
+                    {
+                        byte[] b = Convert.FromBase64String(payload);
+                        string text = Encoding.UTF8.GetString(b);
+                        NativeInput.SetClipboard(text);
+                        OnPacketProcessed?.Invoke("CLIPBOARD", $"{text.Length} chars");
+                    }
+                    catch { }
+                    break;
+                case "W":
+                    if (int.TryParse(payload, out int dir))
+                    {
+                        NativeInput.SwitchBrowserTab(dir);
+                        OnPacketProcessed?.Invoke("TAB_SWITCH", dir.ToString());
+                    }
+                    break;
+            }
+        }
+
+        // ------------------------------------------------------------------ file drop (HTTP TCP)
+
+        private async Task FileServerLoop(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested && _fileServer != null)
+            {
+                try
+                {
+                    TcpClient client = await _fileServer.AcceptTcpClientAsync(token);
+                    _ = Task.Run(() => HandleFileDropClient(client));
+                }
+                catch (OperationCanceledException) { break; }
+                catch { }
+            }
+        }
+
+        private void HandleFileDropClient(TcpClient client)
+        {
+            using (client)
+            using (NetworkStream stream = client.GetStream())
+            {
+                try
+                {
+                    byte[] buffer = new byte[8192];
+                    int read = stream.Read(buffer, 0, buffer.Length);
+                    if (read <= 0) return;
+
+                    string header = Encoding.UTF8.GetString(buffer, 0, read);
+                    string filename = "AirGlide_Drop_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".bin";
+                    int fnIdx = header.IndexOf("filename=");
+                    if (fnIdx > 0)
+                    {
+                        int endIdx = header.IndexOfAny(new[] { ' ', '&', '\r', '\n' }, fnIdx + 9);
+                        if (endIdx > fnIdx)
+                        {
+                            string raw = header.Substring(fnIdx + 9, endIdx - (fnIdx + 9));
+                            filename = Uri.UnescapeDataString(raw);
+                        }
+                    }
+
+                    int bodyStart = 0;
+                    for (int i = 0; i < read - 3; i++)
+                    {
+                        if (buffer[i] == '\r' && buffer[i + 1] == '\n' && buffer[i + 2] == '\r' && buffer[i + 3] == '\n')
+                        {
+                            bodyStart = i + 4;
+                            break;
+                        }
+                    }
+
+                    string dropDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "AirGlide_Drop");
+                    if (!Directory.Exists(dropDir)) Directory.CreateDirectory(dropDir);
+
+                    string safeName = Path.GetFileName(filename);
+                    string destPath = Path.Combine(dropDir, safeName);
+
+                    using (FileStream fs = new FileStream(destPath, FileMode.Create, FileAccess.Write))
+                    {
+                        if (bodyStart > 0 && bodyStart < read)
+                        {
+                            fs.Write(buffer, bodyStart, read - bodyStart);
+                        }
+                        byte[] fileBuf = new byte[16384];
+                        int bytesRead;
+                        while ((bytesRead = stream.Read(fileBuf, 0, fileBuf.Length)) > 0)
+                        {
+                            fs.Write(fileBuf, 0, bytesRead);
+                        }
+                    }
+
+                    byte[] resp = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK");
+                    stream.Write(resp, 0, resp.Length);
+                    OnLog?.Invoke($"📥 File received & saved: {safeName} in Downloads\\AirGlide_Drop");
+                }
+                catch (Exception ex)
+                {
+                    OnLog?.Invoke($"File drop error: {ex.Message}");
                 }
             }
         }

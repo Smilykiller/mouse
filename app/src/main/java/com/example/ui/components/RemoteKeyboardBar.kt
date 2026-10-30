@@ -86,8 +86,12 @@ fun RemoteKeyboardBar(
     val keyboardController = LocalSoftwareKeyboardController.current
     var showCustomizeDialog by remember { mutableStateOf(false) }
 
-    // Live visible text buffer
-    var liveTextBuffer by remember { mutableStateOf("") }
+    // Sentinel buffer strategy: always keeps a single space sentinel " "
+    // This guarantees backspace always deletes on PC (even when field was otherwise empty)
+    // and typing any character is instantly dispatched without predictive composition bugs!
+    var liveTextBuffer by remember { mutableStateOf(" ") }
+    var draftMode by remember { mutableStateOf(false) }
+    var draftText by remember { mutableStateOf("") }
 
     LaunchedEffect(isOpen) {
         if (isOpen) {
@@ -193,23 +197,20 @@ fun RemoteKeyboardBar(
                         value = liveTextBuffer,
                         onValueChange = { incoming ->
                             if (incoming.length > liveTextBuffer.length) {
-                                // Live typing: send typed character(s) immediately over UDP to PC
-                                val added = if (incoming.startsWith(liveTextBuffer)) {
-                                    incoming.substring(liveTextBuffer.length)
-                                } else {
-                                    incoming
-                                }
+                                // New character(s) typed or pasted: send to PC immediately
+                                val added = incoming.substring(liveTextBuffer.length)
                                 onSendText(added)
-                                liveTextBuffer = incoming
+                                liveTextBuffer = " " // reset sentinel
                             } else if (incoming.length < liveTextBuffer.length) {
-                                // Direct Backspace on mobile keyboard
-                                val deletedCount = liveTextBuffer.length - incoming.length
-                                repeat(deletedCount) {
-                                    onKeyPress("BACKSPACE")
-                                }
-                                liveTextBuffer = incoming
+                                // Backspace pressed on Android keyboard: delete char on PC
+                                onKeyPress("BACKSPACE")
+                                liveTextBuffer = " " // reset sentinel
                             } else {
-                                liveTextBuffer = incoming
+                                if (incoming != " ") {
+                                    val typed = incoming.replace(" ", "")
+                                    if (typed.isNotEmpty()) onSendText(typed)
+                                    liveTextBuffer = " "
+                                }
                             }
                         },
                         placeholder = {
@@ -246,7 +247,7 @@ fun RemoteKeyboardBar(
                             onDone = {
                                 // Direct enter button on bottom-right of mobile keyboard
                                 onKeyPress("ENTER")
-                                liveTextBuffer = ""
+                                liveTextBuffer = " "
                             }
                         ),
                         modifier = Modifier
@@ -254,12 +255,9 @@ fun RemoteKeyboardBar(
                             .focusRequester(focusRequester)
                             .onPreviewKeyEvent { event ->
                                 if (event.type == KeyEventType.KeyDown && (event.key == Key.Backspace || event.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_DEL)) {
-                                    if (liveTextBuffer.isEmpty()) {
-                                        onKeyPress("BACKSPACE")
-                                        true
-                                    } else {
-                                        false
-                                    }
+                                    onKeyPress("BACKSPACE")
+                                    liveTextBuffer = " "
+                                    true
                                 } else false
                             }
                             .testTag("remote_text_field")
@@ -267,9 +265,9 @@ fun RemoteKeyboardBar(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    if (liveTextBuffer.isNotEmpty()) {
+                    if (liveTextBuffer != " ") {
                         IconButton(
-                            onClick = { liveTextBuffer = "" },
+                            onClick = { liveTextBuffer = " " },
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(RoundedCornerShape(8.dp))

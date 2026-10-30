@@ -1,8 +1,11 @@
 package com.example.viewmodel
 
 import android.app.Application
+import android.content.ContentResolver
 import android.content.Context
+import android.net.Uri
 import android.os.Build
+import android.provider.OpenableColumns
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,11 +25,14 @@ import com.example.network.UdpClient
 import com.example.network.UdpHostServer
 import com.example.sensor.AirMotionSensorManager
 import com.example.util.HapticFeedbackHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -51,6 +57,15 @@ data class AirGlideUiState(
     val isAirMotionActive: Boolean = false,
     val useVolumeButtonsForNavigation: Boolean = true,
     val airMotionSensitivity: Float = 2.8f,
+    // Ecosystem, Deck & Utilities State
+    val autoScrollSpeed: Float = 0f,
+    val isAutoScrolling: Boolean = false,
+    val lastCopiedText: String = "",
+    val fileTransferStatus: String? = null,
+    val isFileTransferring: Boolean = false,
+    val walkAwayLockEnabled: Boolean = false,
+    val connectedDisplaysCount: Int = 1,
+    val activeDisplayIndex: Int = 1,
     // Device Connectivity & History
     val isWifiEnabled: Boolean = true,
     val isBluetoothEnabled: Boolean = false,
@@ -474,6 +489,114 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
 
     fun toggleKeyboard() {
         _uiState.update { it.copy(isKeyboardOpen = !it.isKeyboardOpen) }
+    }
+
+    fun triggerAction(actionId: String) {
+        if (_uiState.value.settings.hapticFeedback) {
+            haptics.click()
+        }
+        dispatchCommand(RemoteCommand.Action(actionId))
+    }
+
+    fun jumpDisplay() {
+        if (_uiState.value.settings.hapticFeedback) {
+            haptics.heavyClick()
+        }
+        dispatchCommand(RemoteCommand.DisplayJump("next"))
+    }
+
+    fun switchTab(direction: Int) {
+        if (_uiState.value.settings.hapticFeedback) {
+            haptics.scrollTick()
+        }
+        dispatchCommand(RemoteCommand.TabSwitch(direction))
+    }
+
+    fun syncClipboardToPc(text: String) {
+        if (text.isNotBlank()) {
+            val base64 = android.util.Base64.encodeToString(text.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
+            dispatchCommand(RemoteCommand.ClipboardSync(base64))
+            _uiState.update { it.copy(lastCopiedText = text) }
+            if (_uiState.value.settings.hapticFeedback) {
+                haptics.click()
+            }
+        }
+    }
+
+    private var autoScrollJob: Job? = null
+
+    fun setAutoScrollSpeed(speed: Float) {
+        _uiState.update { it.copy(autoScrollSpeed = speed, isAutoScrolling = speed != 0f) }
+        autoScrollJob?.cancel()
+        if (speed != 0f) {
+            autoScrollJob = viewModelScope.launch(Dispatchers.IO) {
+                while (isActive) {
+                    dispatchCommand(RemoteCommand.Scroll(speed))
+                    delay(55L)
+                }
+            }
+        }
+    }
+
+    fun stopAutoScroll() {
+        autoScrollJob?.cancel()
+        autoScrollJob = null
+        _uiState.update { it.copy(autoScrollSpeed = 0f, isAutoScrolling = false) }
+    }
+
+    fun toggleWalkAwayLock() {
+        val next = !_uiState.value.walkAwayLockEnabled
+        _uiState.update { it.copy(walkAwayLockEnabled = next) }
+        sharedPrefs.edit().putBoolean("walk_away_lock", next).apply()
+    }
+
+    fun uploadFileToPc(uri: Uri, contentResolver: ContentResolver) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isFileTransferring = true, fileTransferStatus = "Preparing file...") }
+            try {
+                var fileName = "dropped_file.bin"
+                contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (cursor.moveToFirst() && nameIndex != -1) {
+                        fileName = cursor.getString(nameIndex) ?: fileName
+                    }
+                }
+
+                val targetIp = _uiState.value.settings.targetHostIp
+                if (targetIp.isBlank()) {
+                    _uiState.update { it.copy(isFileTransferring = false, fileTransferStatus = "Cannot send: PC not connected via Wi-Fi") }
+                    return@launch
+                }
+
+                _uiState.update { it.copy(fileTransferStatus = "Sending $fileName to PC...") }
+                val encodedName = java.net.URLEncoder.encode(fileName, "UTF-8")
+                val url = java.net.URL("http://$targetIp:5056/upload?filename=$encodedName")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.connectTimeout = 8000
+                conn.readTimeout = 40000
+                conn.setRequestProperty("Content-Type", "application/octet-stream")
+
+                contentResolver.openInputStream(uri)?.use { inputStream ->
+                    conn.outputStream.use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+
+                val code = conn.responseCode
+                if (code in 200..299) {
+                    _uiState.update { it.copy(isFileTransferring = false, fileTransferStatus = "✓ Received: $fileName saved to PC Downloads!") }
+                    if (_uiState.value.settings.hapticFeedback) {
+                        haptics.heavyClick()
+                    }
+                } else {
+                    _uiState.update { it.copy(isFileTransferring = false, fileTransferStatus = "Transfer failed (HTTP $code)") }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isFileTransferring = false, fileTransferStatus = "Transfer failed: ${e.message}") }
+            }
+        }
     }
 
     private fun applyTarget(ip: String, port: Int, name: String?, manual: Boolean) {

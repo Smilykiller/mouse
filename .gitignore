@@ -42,6 +42,7 @@ __pycache__/
 *.exe
 *.apk
 *.zip
+!app/src/main/assets/receiver/*.zip
 *.png
 !Resources/*.png
 !desktop_receiver/Resources/*.png

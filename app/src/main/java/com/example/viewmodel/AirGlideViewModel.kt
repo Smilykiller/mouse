@@ -66,6 +66,11 @@ data class AirGlideUiState(
     val walkAwayLockEnabled: Boolean = false,
     val connectedDisplaysCount: Int = 1,
     val activeDisplayIndex: Int = 1,
+    // Laptop Receiver Installer & Drop State
+    val isWifiDropServerRunning: Boolean = false,
+    val wifiDropServerUrl: String = "",
+    val wifiDropDownloadCount: Int = 0,
+    val wifiDropStatus: String? = null,
     // Device Connectivity & History
     val isWifiEnabled: Boolean = true,
     val isBluetoothEnabled: Boolean = false,
@@ -102,6 +107,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
     private val udpClient: UdpClient
     private val udpHostServer: UdpHostServer
     val bluetoothClient: com.example.network.BluetoothClient
+    val wifiDropServer: com.example.installer.WifiDropServer
 
     private var scrollAccumulator: Float = 0f
     private var manualTarget: Boolean = false
@@ -149,6 +155,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         udpClient = UdpClient(deviceId, deviceName, viewModelScope)
         udpHostServer = UdpHostServer(viewModelScope)
         bluetoothClient = com.example.network.BluetoothClient(deviceId, deviceName, viewModelScope)
+        wifiDropServer = com.example.installer.WifiDropServer(viewModelScope)
 
         val history = loadDeviceHistory(defaultTargetIp, savedPort)
         val wifiOn = NetworkUtils.isWifiHardwareEnabled(application)
@@ -293,6 +300,26 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
                 if (_uiState.value.connectionMode == ConnectionMode.BLUETOOTH) {
                     _uiState.update { it.copy(packetsSent = count) }
                 }
+            }
+        }
+        viewModelScope.launch {
+            wifiDropServer.isRunning.collect { running ->
+                _uiState.update { it.copy(isWifiDropServerRunning = running) }
+            }
+        }
+        viewModelScope.launch {
+            wifiDropServer.serverUrl.collect { url ->
+                _uiState.update { it.copy(wifiDropServerUrl = url) }
+            }
+        }
+        viewModelScope.launch {
+            wifiDropServer.downloadCount.collect { count ->
+                _uiState.update { it.copy(wifiDropDownloadCount = count) }
+            }
+        }
+        viewModelScope.launch {
+            wifiDropServer.lastDownloadStatus.collect { status ->
+                _uiState.update { it.copy(wifiDropStatus = status) }
             }
         }
 
@@ -631,6 +658,45 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
             } catch (e: Exception) {
                 _uiState.update { it.copy(isFileTransferring = false, fileTransferStatus = "Transfer failed: ${e.message}") }
             }
+        }
+    }
+
+    // =========================================================================
+    // Laptop Receiver Direct Drop & Installation Methods
+    // =========================================================================
+
+    fun startWifiDropServer(context: android.content.Context) {
+        wifiDropServer.start(context)
+    }
+
+    fun stopWifiDropServer() {
+        wifiDropServer.stop()
+    }
+
+    fun beamReceiverViaBluetooth(context: android.content.Context) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(wifiDropStatus = "Extracting receiver for Bluetooth transfer...") }
+            val ok = com.example.installer.BluetoothDropManager.beamReceiverViaBluetooth(context)
+            _uiState.update {
+                it.copy(
+                    wifiDropStatus = if (ok) "✓ Bluetooth beam started! Tap 'Accept' on your Windows laptop."
+                    else "Could not start Bluetooth beam. Please ensure phone & laptop are paired."
+                )
+            }
+        }
+    }
+
+    fun saveReceiverToPhoneDownloads(context: android.content.Context) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(wifiDropStatus = "Saving receiver to phone storage...") }
+            val result = com.example.installer.AssetInstallerManager.saveToPhoneDownloads(context)
+            _uiState.update { it.copy(wifiDropStatus = result) }
+        }
+    }
+
+    fun shareReceiverGeneric(context: android.content.Context) {
+        viewModelScope.launch {
+            com.example.installer.BluetoothDropManager.shareReceiverGeneric(context)
         }
     }
 

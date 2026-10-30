@@ -98,6 +98,7 @@ fun HubSettingsScreen(
     onConnectBluetooth: (BluetoothDeviceInfo) -> Unit = {},
     onDisconnectBluetooth: () -> Unit = {},
     onOpenMousepad: () -> Unit = {},
+    onOpenInstallOnLaptop: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -571,6 +572,67 @@ fun HubSettingsScreen(
                         tint = GraySecondary,
                         modifier = Modifier.size(18.dp)
                     )
+                }
+            }
+        }
+
+        // Install Receiver on Laptop Card
+        Surface(
+            color = Color(0xFF131A26),
+            shape = RoundedCornerShape(14.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0284C7)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .clickable { onOpenInstallOnLaptop() }
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF0284C7).copy(alpha = 0.2f),
+                        modifier = Modifier.size(42.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Laptop,
+                                contentDescription = "Laptop",
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            text = "Install Receiver on Laptop",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = WhitePrimary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Beam via Wi-Fi drop or Bluetooth",
+                            fontSize = 12.sp,
+                            color = GraySecondary
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = onOpenInstallOnLaptop,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                ) {
+                    Text("Send", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

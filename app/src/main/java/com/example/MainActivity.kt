@@ -56,6 +56,7 @@ import com.example.model.AppNavTab
 import com.example.model.AppRole
 import com.example.model.AppScreen
 import com.example.ui.dialogs.DesktopScriptDialog
+import com.example.ui.dialogs.InstallOnLaptopDialog
 import com.example.ui.dialogs.PermissionsAndSecurityDialog
 import com.example.ui.screens.ControllerScreen
 import com.example.ui.screens.DeckScreen
@@ -127,6 +128,7 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
     var showScriptDialog by remember { mutableStateOf(false) }
     var showSecurityDialog by remember { mutableStateOf(false) }
     var showFullHelpDialog by remember { mutableStateOf(false) }
+    var showInstallOnLaptopDialog by remember { mutableStateOf(false) }
 
     val btPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -320,7 +322,8 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                     onSelectConnectionMode = { mode -> viewModel.setConnectionMode(mode) },
                     onScanBluetooth = { viewModel.scanBluetoothDevices() },
                     onConnectBluetooth = { device -> viewModel.connectBluetooth(device) },
-                    onDisconnectBluetooth = { viewModel.disconnectBluetooth() }
+                    onDisconnectBluetooth = { viewModel.disconnectBluetooth() },
+                    onOpenInstallOnLaptop = { showInstallOnLaptopDialog = true }
                 )
             } else {
                 // Categorized Tab Pages
@@ -413,7 +416,8 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                             onScanBluetooth = { viewModel.scanBluetoothDevices() },
                             onConnectBluetooth = { device -> viewModel.connectBluetooth(device) },
                             onDisconnectBluetooth = { viewModel.disconnectBluetooth() },
-                            onOpenMousepad = { viewModel.selectTab(AppNavTab.TRACKPAD) }
+                            onOpenMousepad = { viewModel.selectTab(AppNavTab.TRACKPAD) },
+                            onOpenInstallOnLaptop = { showInstallOnLaptopDialog = true }
                         )
                     }
                 }
@@ -457,6 +461,22 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                 }
             }
         }
+    }
+
+    if (showInstallOnLaptopDialog) {
+        val context = LocalContext.current
+        InstallOnLaptopDialog(
+            state = uiState,
+            onStartWifiDrop = { ctx -> viewModel.startWifiDropServer(ctx) },
+            onStopWifiDrop = { viewModel.stopWifiDropServer() },
+            onBeamBluetooth = { ctx -> viewModel.beamReceiverViaBluetooth(ctx) },
+            onSaveToDownloads = { ctx -> viewModel.saveReceiverToPhoneDownloads(ctx) },
+            onShareGeneric = { ctx -> viewModel.shareReceiverGeneric(ctx) },
+            onDismiss = {
+                viewModel.stopWifiDropServer()
+                showInstallOnLaptopDialog = false
+            }
+        )
     }
 
     if (showScriptDialog) {

@@ -107,6 +107,7 @@ fun DeviceConnectivityScreen(
     onScanBluetooth: () -> Unit = {},
     onConnectBluetooth: (BluetoothDeviceInfo) -> Unit = {},
     onDisconnectBluetooth: () -> Unit = {},
+    onOpenInstallOnLaptop: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BackHandler { onBack() }
@@ -277,6 +278,48 @@ fun DeviceConnectivityScreen(
                                     )
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // 1-Click "Install on Laptop" Hero Banner (Send via Wi-Fi or Bluetooth)
+            if (state.role == AppRole.CONTROLLER) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF131A26),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0284C7)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { onOpenInstallOnLaptop() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF0284C7).copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Laptop, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("💻 Install Receiver on Laptop", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = WhitePrimary)
+                            Text("Beam app from phone over Wi-Fi or Bluetooth (No web search)", fontSize = 11.sp, color = GraySecondary)
+                        }
+                        Button(
+                            onClick = onOpenInstallOnLaptop,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                        ) {
+                            Text("Send", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

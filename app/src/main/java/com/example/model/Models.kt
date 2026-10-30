@@ -28,6 +28,9 @@ enum class MousePadTheme(
     NORDIC_MINIMALIST("nordic_minimalist", "Nordic Slate", "Scandi matte birch & calm slate"),
     TITANIUM_METAL("titanium_metal", "Brushed Titanium", "Industrial alloy with precision crosshairs"),
     DEEP_SPACE("deep_space", "Cosmic Nebula", "Deep space galaxy dust & stellar glow"),
+    TOKYO_MIDNIGHT("tokyo_midnight", "Tokyo Midnight", "Cyber indigo with neon sakura pink accents"),
+    AURORA_BOREALIS("aurora_borealis", "Aurora Borealis", "Polar teal & violet luminous atmospheric glow"),
+    AMOLED_PITCH("amoled_pitch", "AMOLED Pitch Black", "Pure true-black surface with zero OLED battery consumption"),
     CUSTOM_PHOTO("custom_photo", "Custom Photo", "Your personalized gallery picture")
 }
 

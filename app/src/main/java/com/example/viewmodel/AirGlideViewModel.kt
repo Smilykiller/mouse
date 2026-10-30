@@ -404,6 +404,17 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun onLeftDown() {
+        if (_uiState.value.settings.hapticFeedback) {
+            haptics.heavyClick()
+        }
+        dispatchCommand(RemoteCommand.MouseDown(ClickButton.LEFT))
+    }
+
+    fun onLeftUp() {
+        dispatchCommand(RemoteCommand.MouseUp(ClickButton.LEFT))
+    }
+
     fun onRightClick() {
         if (_uiState.value.settings.hapticFeedback) {
             haptics.heavyClick()

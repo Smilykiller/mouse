@@ -340,7 +340,7 @@ fun ThemesScreen(
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "MOUSE PAD DESIGNS (10 STYLES)",
+                text = "MOUSE PAD DESIGNS (13 UNIQUE STYLES)",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = GrayMuted,
@@ -351,8 +351,11 @@ fun ThemesScreen(
         val allThemes = listOf(
             MousePadTheme.STEALTH,
             MousePadTheme.CYBER_NEON,
+            MousePadTheme.TOKYO_MIDNIGHT,
+            MousePadTheme.AURORA_BOREALIS,
             MousePadTheme.RETRO_SYNTHWAVE,
             MousePadTheme.DEEP_SPACE,
+            MousePadTheme.AMOLED_PITCH,
             MousePadTheme.FROSTED_GLASS,
             MousePadTheme.CARBON_FIBER,
             MousePadTheme.SUNSET_AURA,
@@ -466,6 +469,21 @@ private fun ThemeCardItem(
                 Color(0xFF06B6D4),
                 Color(0xFF06B6D4),
                 Brush.linearGradient(listOf(Color(0xFF070B14), Color(0xFF082F49)))
+            )
+            MousePadTheme.TOKYO_MIDNIGHT -> Triple(
+                Color(0xFFEC4899),
+                Color(0xFFF43F5E),
+                Brush.linearGradient(listOf(Color(0xFF0D0C1D), Color(0xFF260D38), Color(0xFF080614)))
+            )
+            MousePadTheme.AURORA_BOREALIS -> Triple(
+                Color(0xFF14B8A6),
+                Color(0xFF10B981),
+                Brush.linearGradient(listOf(Color(0xFF042421), Color(0xFF093931), Color(0xFF031015)))
+            )
+            MousePadTheme.AMOLED_PITCH -> Triple(
+                Color(0xFF52525B),
+                Color(0xFFFFFFFF),
+                Brush.linearGradient(listOf(Color(0xFF000000), Color(0xFF18181B)))
             )
             MousePadTheme.RETRO_SYNTHWAVE -> Triple(
                 Color(0xFFD946EF),

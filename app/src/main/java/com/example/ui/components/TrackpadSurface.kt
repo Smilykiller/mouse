@@ -54,12 +54,14 @@ import java.io.File
 fun TrackpadSurface(
     onPointerMove: (Float, Float) -> Unit,
     onTap: () -> Unit,
-    onDoubleTap: () -> Unit,
+    onDoubleTap: () -> Unit = {},
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
     enableTapToClick: Boolean = true,
     label: String = "TRACKPAD SURFACE",
     onScroll: (Float) -> Unit = {},
+    onLeftDown: () -> Unit = {},
+    onLeftUp: () -> Unit = {},
     theme: MousePadTheme = MousePadTheme.STEALTH,
     customImagePath: String? = null,
     dragLockActive: Boolean = false,
@@ -67,11 +69,18 @@ fun TrackpadSurface(
 ) {
     val currentOnPointerMove by rememberUpdatedState(onPointerMove)
     val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnDoubleTap by rememberUpdatedState(onDoubleTap)
     val currentOnLongPress by rememberUpdatedState(onLongPress)
     val currentOnScroll by rememberUpdatedState(onScroll)
+    val currentOnLeftDown by rememberUpdatedState(onLeftDown)
+    val currentOnLeftUp by rememberUpdatedState(onLeftUp)
 
     var touchPosition by remember { mutableStateOf<Offset?>(null) }
     var isTouching by remember { mutableStateOf(false) }
+    var isDragActive by remember { mutableStateOf(false) }
+
+    var lastTapUpTime by remember { mutableStateOf(0L) }
+    var lastTapPosition by remember { mutableStateOf(Offset.Zero) }
 
     // Load custom gallery image if selected
     val customBitmap = remember(customImagePath, theme) {
@@ -144,6 +153,24 @@ fun TrackpadSurface(
                 Color(0xFF6366F1),
                 Color(0xFFA5B4FC)
             )
+            MousePadTheme.TOKYO_MIDNIGHT -> QuadColors(
+                Color(0xFF0D0C1D),
+                Color(0xFFF43F5E).copy(alpha = 0.30f),
+                Color(0xFFEC4899),
+                Color(0xFF38BDF8)
+            )
+            MousePadTheme.AURORA_BOREALIS -> QuadColors(
+                Color(0xFF041C1A),
+                Color(0xFF10B981).copy(alpha = 0.30f),
+                Color(0xFF14B8A6),
+                Color(0xFFA855F7)
+            )
+            MousePadTheme.AMOLED_PITCH -> QuadColors(
+                Color(0xFF000000),
+                Color(0xFF27272A).copy(alpha = 0.25f),
+                Color(0xFF52525B),
+                Color(0xFFFFFFFF)
+            )
             MousePadTheme.CUSTOM_PHOTO -> QuadColors(
                 Color(0xFF12131A),
                 Color.White.copy(alpha = 0.25f),
@@ -176,8 +203,20 @@ fun TrackpadSurface(
                     val downTime = System.currentTimeMillis()
                     var hasMoved = false
                     var usedTwoFingers = false
+                    var twoFingersMoved = false
                     var lastPosition = down.position
                     var lastCenterY = 0f
+
+                    // 1. Double-Tap and Drag Recognition
+                    val isDoubleTapDrag = (downTime - lastTapUpTime < 320L) &&
+                            (down.position - lastTapPosition).getDistance() < 140f
+
+                    var draggingStarted = false
+                    if (isDoubleTapDrag) {
+                        draggingStarted = true
+                        isDragActive = true
+                        currentOnLeftDown()
+                    }
 
                     while (true) {
                         val event = awaitPointerEvent()
@@ -185,16 +224,27 @@ fun TrackpadSurface(
 
                         if (pressed.isEmpty()) {
                             val duration = System.currentTimeMillis() - downTime
-                            if (!hasMoved && !usedTwoFingers && enableTapToClick) {
-                                if (duration < 380L) {
+                            if (draggingStarted || isDragActive) {
+                                currentOnLeftUp()
+                                isDragActive = false
+                                draggingStarted = false
+                                lastTapUpTime = 0L
+                            } else if (usedTwoFingers && !twoFingersMoved && duration < 380L) {
+                                // Two-finger tap = Right Click
+                                currentOnLongPress()
+                            } else if (!hasMoved && !usedTwoFingers && enableTapToClick) {
+                                if (duration < 280L) {
+                                    lastTapUpTime = System.currentTimeMillis()
+                                    lastTapPosition = down.position
                                     currentOnTap()
-                                } else if (duration >= 550L) {
+                                } else if (duration >= 500L) {
                                     currentOnLongPress()
                                 }
                             }
                             break
                         }
 
+                        // 2. Two-Finger Gestures (Scroll & Right Click)
                         if (pressed.size >= 2) {
                             val centerY = pressed.map { it.position.y }.average().toFloat()
                             if (!usedTwoFingers) {
@@ -203,7 +253,8 @@ fun TrackpadSurface(
                             } else {
                                 val dy = centerY - lastCenterY
                                 lastCenterY = centerY
-                                if (Math.abs(dy) > 0.01f) {
+                                if (Math.abs(dy) > 1.2f) {
+                                    twoFingersMoved = true
                                     currentOnScroll(dy)
                                 }
                             }
@@ -217,10 +268,19 @@ fun TrackpadSurface(
                             continue
                         }
 
+                        // 3. Single Finger Movement & Drag Detection
                         val change = pressed[0]
                         val currentPos = change.position
                         val dx = currentPos.x - lastPosition.x
                         val dy = currentPos.y - lastPosition.y
+                        val elapsed = System.currentTimeMillis() - downTime
+
+                        // Press and Hold in place for > 380ms initiates drag mode
+                        if (!hasMoved && !draggingStarted && elapsed > 380L) {
+                            draggingStarted = true
+                            isDragActive = true
+                            currentOnLeftDown()
+                        }
 
                         if (Math.abs(dx) > 0.01f || Math.abs(dy) > 0.01f) {
                             hasMoved = true
@@ -233,6 +293,10 @@ fun TrackpadSurface(
 
                     isTouching = false
                     touchPosition = null
+                    if (isDragActive) {
+                        currentOnLeftUp()
+                        isDragActive = false
+                    }
                 }
             }
     ) {
@@ -302,6 +366,32 @@ fun TrackpadSurface(
                             radius = 900f
                         )
                     )
+            )
+        } else if (theme == MousePadTheme.TOKYO_MIDNIGHT) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF0D0C1D), Color(0xFF260D38), Color(0xFF080614))
+                        )
+                    )
+            )
+        } else if (theme == MousePadTheme.AURORA_BOREALIS) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFF042421), Color(0xFF093931), Color(0xFF031015))
+                        )
+                    )
+            )
+        } else if (theme == MousePadTheme.AMOLED_PITCH) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
             )
         }
 
@@ -403,40 +493,6 @@ fun TrackpadSurface(
                         letterSpacing = 0.5.sp
                     )
                 }
-            }
-        }
-
-        // 5. Floating Quick Drag-Lock Pill (Bottom Right Corner)
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = if (dragLockActive) Color(0xFFD97706) else Color(0xB31E222D),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                if (dragLockActive) Color(0xFFFBBF24) else Color(0x66475569)
-            ),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(14.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .clickable { onToggleDragLock() }
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = if (dragLockActive) Icons.Default.Lock else Icons.Default.TouchApp,
-                    contentDescription = "Hold Drag",
-                    tint = if (dragLockActive) Color.White else Color(0xFFCBD5E1),
-                    modifier = Modifier.size(13.dp)
-                )
-                Spacer(modifier = Modifier.width(5.dp))
-                Text(
-                    text = if (dragLockActive) "DRAG LOCKED" else "HOLD DRAG",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (dragLockActive) Color.White else Color(0xFFCBD5E1)
-                )
             }
         }
     }

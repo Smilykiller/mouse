@@ -5,6 +5,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -84,6 +85,8 @@ fun ControllerScreen(
     onKeyboardTextChange: (String) -> Unit,
     onToggleKeyboard: () -> Unit,
     onDisconnect: () -> Unit,
+    onLeftDown: () -> Unit = {},
+    onLeftUp: () -> Unit = {},
     onUpdateQuickKeys: (List<String>) -> Unit = {},
     onResetQuickKeys: () -> Unit = {},
     onOpenFullHelp: () -> Unit = {},
@@ -108,7 +111,7 @@ fun ControllerScreen(
             .fillMaxSize()
             .background(TrueBlack)
             .imePadding() // Automatically shrinks above Android software keyboard
-            .padding(12.dp)
+            .padding(10.dp)
     ) {
         Column(
             modifier = Modifier
@@ -116,225 +119,89 @@ fun ControllerScreen(
                 .animateContentSize(animationSpec = tween(250)),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Minimal Header: Back Button, Connection Status Pill, Actions (Keyboard, Disconnect, Help)
-            Surface(
-                color = DarkSurface,
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // 1. Back to Settings Button (Clear & unmissable)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(CardDark)
-                            .clickable { onBackToHub() }
-                            .padding(horizontal = 10.dp, vertical = 7.dp)
-                            .testTag("controller_back_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Settings",
-                            tint = WhitePrimary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = "Settings",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WhitePrimary
-                        )
-                    }
-
-                    // 2. True Connection Status Pill (Wi-Fi or Bluetooth)
-                    val (dotColor, statusTitle, statusSub) = when {
-                        state.connectionMode == com.example.model.ConnectionMode.BLUETOOTH -> {
-                            if (state.isLiveConnected) Triple(Color(0xFF38BDF8), "Bluetooth", state.activeHostName)
-                            else Triple(DotAmberMild, "BT Ready", "No device")
-                        }
-                        state.isLiveConnected -> Triple(DotGreenMild, "Live", state.activeHostName)
-                        state.isLocalNetworkActive -> Triple(DotAmberMild, "Ready", state.settings.targetHostIp)
-                        else -> Triple(DotRedMild, "No Wi-Fi", "")
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = CardDark,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(7.dp)
-                                    .clip(CircleShape)
-                                    .background(dotColor)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = statusTitle,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WhitePrimary
-                            )
-                            if (statusSub.isNotBlank()) {
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Text(
-                                    text = if (state.packetsSent > 0) "$statusSub • ${state.packetsSent}" else statusSub,
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = GraySecondary
-                                )
-                            }
-                        }
-                    }
-
-                    // 3. Right Action Buttons: Keyboard + Disconnect + Small Help Button
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = onToggleKeyboard,
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isKbOpen) ElevatedSurface else CardDark)
-                                .testTag("controller_keyboard_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Keyboard,
-                                contentDescription = "Toggle Keyboard",
-                                tint = WhitePrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        IconButton(
-                            onClick = onDisconnect,
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF2D1414))
-                                .testTag("controller_disconnect_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Disconnect Device",
-                                tint = Color(0xFFF87171),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        // Small Help Button at Right End
-                        IconButton(
-                            onClick = { showHelpDialog = true },
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF1E293B))
-                                .testTag("controller_help_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                                contentDescription = "Mousepad Help",
-                                tint = Color(0xFF38BDF8),
-                                modifier = Modifier.size(17.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Click & Drag Quick Action Bar (Available across all layouts)
+            // Minimal Header: Top-Left ONLY Back Button (to Settings), Top-Right Small Help & Keyboard
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Drag & Drop Mode Toggle
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (state.dragLockActive) Color(0xFFB45309) else Color(0xFF1E222D),
-                    border = BorderStroke(
-                        1.dp,
-                        if (state.dragLockActive) Color(0xFFF59E0B) else Color(0xFF334155)
-                    ),
+                // 1. Back to Settings Button (Top Left Only)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
-                        .clickable { onToggleDragLock() }
-                        .testTag("action_drag_lock")
+                        .background(CardDark)
+                        .border(BorderStroke(1.dp, BorderDark), RoundedCornerShape(10.dp))
+                        .clickable { onBackToHub() }
+                        .padding(horizontal = 12.dp, vertical = 7.dp)
+                        .testTag("controller_back_button")
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (state.dragLockActive) Icons.Default.Lock else Icons.Default.TouchApp,
-                            contentDescription = "Click and Drag",
-                            tint = if (state.dragLockActive) Color.White else Color(0xFF94A3B8),
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (state.dragLockActive) "DRAG HELD (TAP TO DROP)" else "CLICK & DRAG",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.dragLockActive) Color.White else Color(0xFFCBD5E1)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Settings",
+                        tint = WhitePrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Settings",
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WhitePrimary
+                    )
                 }
 
-                // Middle Click Quick Action
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFF1E222D),
-                    border = BorderStroke(1.dp, Color(0xFF334155)),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onMiddleClick() }
-                        .testTag("action_middle_click")
+                // 2. Right End: Compact Keyboard & Small Help Button
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    // Small Keyboard Toggle
+                    IconButton(
+                        onClick = onToggleKeyboard,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isKbOpen) ElevatedSurface else CardDark)
+                            .border(BorderStroke(1.dp, BorderDark), RoundedCornerShape(8.dp))
+                            .testTag("controller_keyboard_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Mouse,
-                            contentDescription = "Middle Click",
-                            tint = Color(0xFF94A3B8),
-                            modifier = Modifier.size(14.dp)
+                            imageVector = Icons.Default.Keyboard,
+                            contentDescription = "Keyboard",
+                            tint = WhitePrimary,
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "MIDDLE CLICK",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFCBD5E1)
+                    }
+
+                    // Very Small Help Button at Right End
+                    IconButton(
+                        onClick = { showHelpDialog = true },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF1E293B))
+                            .border(BorderStroke(1.dp, Color(0xFF334155)), RoundedCornerShape(8.dp))
+                            .testTag("controller_help_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                            contentDescription = "Touchpad Help",
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
             }
 
-            // Mousepad Area: Size dynamically reduces when keyboard is opened
+            // Mousepad Area: Expands to 100% of remaining screen with ZERO bottom keys to eliminate mis-touches!
             val mousePadWeight = if (isKbOpen) 0.55f else 1.0f
 
             when (state.layout) {
                 TouchpadLayout.SPLIT -> {
-                    // Split Layout: Trackpad + Dedicated Scroll Strip
+                    // Split Layout: Trackpad + Dedicated Scroll Strip (No bottom buttons!)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -347,11 +214,13 @@ fun ControllerScreen(
                             onDoubleTap = onLeftClick,
                             onLongPress = onRightClick,
                             onScroll = onScroll,
+                            onLeftDown = onLeftDown,
+                            onLeftUp = onLeftUp,
                             theme = state.selectedTheme,
                             customImagePath = state.customImagePath,
                             dragLockActive = state.dragLockActive,
                             onToggleDragLock = onToggleDragLock,
-                            label = if (isKbOpen) "TOUCHPAD" else "TOUCHPAD SURFACE (SWIPE TO MOVE)",
+                            label = if (isKbOpen) "TOUCHPAD" else "TOUCHPAD • DOUBLE-TAP TO DRAG",
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxSize()
@@ -363,115 +232,52 @@ fun ControllerScreen(
                             modifier = Modifier.testTag("split_scroll_strip")
                         )
                     }
-
-                    // Twin Click Boxes at bottom (Compact height when typing)
-                    val clickHeight = if (isKbOpen) 80 else 115
-                    TwinClickButtons(
-                        onLeftClick = onLeftClick,
-                        onRightClick = onRightClick,
-                        onMiddleClick = onMiddleClick,
-                        dragLockActive = state.dragLockActive,
-                        onToggleDragLock = onToggleDragLock,
-                        height = clickHeight
-                    )
                 }
 
                 TouchpadLayout.CLASSIC -> {
-                    // Classic Laptop
+                    // Classic Laptop Full-Area Trackpad (No bottom buttons to prevent palm mis-touches)
                     TrackpadSurface(
                         onPointerMove = onPointerMove,
                         onTap = onLeftClick,
                         onDoubleTap = onLeftClick,
                         onLongPress = onRightClick,
                         onScroll = onScroll,
+                        onLeftDown = onLeftDown,
+                        onLeftUp = onLeftUp,
                         theme = state.selectedTheme,
                         customImagePath = state.customImagePath,
                         dragLockActive = state.dragLockActive,
                         onToggleDragLock = onToggleDragLock,
-                        label = if (isKbOpen) "TRACKPAD" else "EXPANSIVE LAPTOP TRACKPAD",
+                        label = if (isKbOpen) "TRACKPAD" else "EXPANSIVE LAPTOP TRACKPAD • DOUBLE-TAP TO DRAG",
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(mousePadWeight)
-                    )
-
-                    val clickHeight = if (isKbOpen) 85 else 125
-                    TwinClickButtons(
-                        onLeftClick = onLeftClick,
-                        onRightClick = onRightClick,
-                        onMiddleClick = onMiddleClick,
-                        dragLockActive = state.dragLockActive,
-                        onToggleDragLock = onToggleDragLock,
-                        height = clickHeight
                     )
                 }
 
                 TouchpadLayout.GESTURE -> {
-                    // Gesture Surface
-                    Box(
+                    // 100% Pure Gesture Surface (Zero bottom keys, effortless gestures)
+                    TrackpadSurface(
+                        onPointerMove = onPointerMove,
+                        onTap = onLeftClick,
+                        onDoubleTap = onLeftClick,
+                        onLongPress = onRightClick,
+                        onScroll = onScroll,
+                        onLeftDown = onLeftDown,
+                        onLeftUp = onLeftUp,
+                        theme = state.selectedTheme,
+                        customImagePath = state.customImagePath,
+                        dragLockActive = state.dragLockActive,
+                        onToggleDragLock = onToggleDragLock,
+                        label = if (isKbOpen) "GESTURE PAD" else "FULL GESTURE SURFACE (DOUBLE-TAP TO DRAG)",
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(mousePadWeight)
-                    ) {
-                        TrackpadSurface(
-                            onPointerMove = onPointerMove,
-                            onTap = onLeftClick,
-                            onDoubleTap = onLeftClick,
-                            onLongPress = onRightClick,
-                            onScroll = onScroll,
-                            theme = state.selectedTheme,
-                            customImagePath = state.customImagePath,
-                            dragLockActive = state.dragLockActive,
-                            onToggleDragLock = onToggleDragLock,
-                            label = if (isKbOpen) "GESTURE PAD" else "FULL GESTURE SURFACE (TAP = CLICK)",
-                            modifier = Modifier.fillMaxSize()
-                        )
-
-                        if (!isKbOpen) {
-                            Surface(
-                                color = DarkSurface.copy(alpha = 0.95f),
-                                shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, BorderDark),
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(14.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Button(
-                                        onClick = onLeftClick,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = WhitePrimary,
-                                            contentColor = TrueBlack
-                                        ),
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier.height(36.dp)
-                                    ) {
-                                        Text("LEFT CLICK", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TrueBlack)
-                                    }
-
-                                    Button(
-                                        onClick = onRightClick,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = ElevatedSurface,
-                                            contentColor = WhitePrimary
-                                        ),
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier.height(36.dp)
-                                    ) {
-                                        Text("RIGHT CLICK", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WhitePrimary)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    )
                 }
             }
 
-            // Remote Keyboard Bar
+            // Remote Keyboard Bar (Only visible when user toggles keyboard)
             RemoteKeyboardBar(
                 isOpen = isKbOpen,
                 customKeyCodes = state.customQuickKeys,
@@ -563,22 +369,26 @@ private fun QuickTouchpadHelpDialog(
                     ) {
                         when (layout) {
                             TouchpadLayout.GESTURE -> {
-                                GestureHelpRow("👆", "Cursor Move", "Glide 1 finger across the full trackpad")
-                                GestureHelpRow("👆", "Left Click", "Single tap anywhere on the pad")
-                                GestureHelpRow("✌️", "Right Click", "Tap with 2 fingers simultaneously")
-                                GestureHelpRow("↕️", "Two-Finger Scroll", "Slide 2 fingers vertically")
-                                GestureHelpRow("🔒", "Click & Drag", "Tap 'HOLD DRAG' button or Double-tap & slide. Tap to drop!")
+                                GestureHelpRow("👆", "Move Pointer", "Slide 1 finger across the full screen")
+                                GestureHelpRow("👆", "Left Click", "Single tap anywhere on the screen")
+                                GestureHelpRow("✌️", "Right Click", "Tap with 2 fingers or long-press")
+                                GestureHelpRow("↕️", "Two-Finger Scroll", "Slide 2 fingers up and down")
+                                GestureHelpRow("🔒", "Double-Tap Drag", "Double-tap and slide without lifting to drag & select! Lift to drop.")
+                                GestureHelpRow("⏱️", "Hold & Drag", "Press and hold in place for 0.4s until haptic pulse, then slide to drag.")
                             }
                             TouchpadLayout.SPLIT -> {
-                                GestureHelpRow("👆", "Cursor Move", "Glide 1 finger on the upper trackpad")
-                                GestureHelpRow("📜", "Easy Scroll", "Slide 1 finger along the dedicated right strip")
-                                GestureHelpRow("🖱️", "Left & Right", "Tap the massive twin buttons at the bottom")
-                                GestureHelpRow("🔒", "Click & Drag", "Hold Left button or tap [CLICK & DRAG]")
+                                GestureHelpRow("👆", "Move Pointer", "Slide 1 finger across the trackpad")
+                                GestureHelpRow("📜", "Vertical Scroll", "Slide along the dedicated right strip")
+                                GestureHelpRow("👆", "Left Click", "Tap once anywhere on the surface")
+                                GestureHelpRow("✌️", "Right Click", "2-finger tap or long press")
+                                GestureHelpRow("🔒", "Click & Drag", "Double-tap & slide, or hold in place for 0.4s to drag!")
                             }
                             TouchpadLayout.CLASSIC -> {
-                                GestureHelpRow("👆", "Cursor Move", "Glide 1 finger on the main upper trackpad")
-                                GestureHelpRow("🖱️", "Left & Right", "Tap the bottom laptop click buttons")
-                                GestureHelpRow("🔒", "Click & Drag", "Tap [CLICK & DRAG] at top or bottom-right")
+                                GestureHelpRow("👆", "Move Pointer", "Slide 1 finger across the expansive pad")
+                                GestureHelpRow("👆", "Left Click", "Single tap anywhere on the surface")
+                                GestureHelpRow("✌️", "Right Click", "2-finger tap or long press")
+                                GestureHelpRow("↕️", "Two-Finger Scroll", "Slide 2 fingers up and down")
+                                GestureHelpRow("🔒", "Click & Drag", "Double-tap & slide, or hold in place for 0.4s to drag!")
                             }
                         }
                     }

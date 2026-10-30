@@ -1,11 +1,15 @@
 package com.example
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -106,10 +110,27 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
     var showScriptDialog by remember { mutableStateOf(false) }
     var showSecurityDialog by remember { mutableStateOf(false) }
 
+    val btPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.all { it }
+        if (granted) {
+            viewModel.scanBluetoothDevices()
+        }
+    }
+
     // Always ensure the mobile app defaults to Controller mode and Trackpad screen
     LaunchedEffect(Unit) {
         viewModel.setRole(AppRole.CONTROLLER)
         viewModel.navigateTo(AppScreen.TRACKPAD)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            btPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN
+                )
+            )
+        }
     }
 
     val cyanAccent = Color(0xFF06B6D4)
@@ -274,6 +295,8 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                                 onKeyboardTextChange = { text -> viewModel.setKeyboardText(text) },
                                 onToggleKeyboard = { viewModel.toggleKeyboard() },
                                 onDisconnect = { viewModel.disconnectFromDevice() },
+                                onLeftDown = { viewModel.onLeftDown() },
+                                onLeftUp = { viewModel.onLeftUp() },
                                 onUpdateQuickKeys = { keys -> viewModel.updateQuickKeys(keys) },
                                 onResetQuickKeys = { viewModel.resetQuickKeys() },
                                 onOpenFullHelp = { viewModel.selectTab(AppNavTab.HELP) }

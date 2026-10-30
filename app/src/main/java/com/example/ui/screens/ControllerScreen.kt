@@ -7,6 +7,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -128,185 +130,204 @@ fun ControllerScreen(
                 .animateContentSize(animationSpec = tween(250)),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Minimal Header: Top-Left ONLY Back Button (to Settings), Top-Right Small Help & Keyboard
+            // Scrollable Top Header Toolbar: smooth horizontal scroll prevents any cramping or overlapping
+            val headerScrollState = rememberScrollState()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .horizontalScroll(headerScrollState)
+                    .padding(horizontal = 2.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 1. Back to Settings & Connection Mode Indicator
+                // 1. Back to Settings Button
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(CardDark)
+                        .border(BorderStroke(1.dp, BorderDark), RoundedCornerShape(10.dp))
+                        .clickable { onBackToHub() }
+                        .padding(horizontal = 12.dp, vertical = 7.dp)
+                        .testTag("controller_back_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Settings",
+                        tint = WhitePrimary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = "Settings",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WhitePrimary
+                    )
+                }
+
+                // 2. Connection Status & Mode Badge (Wi-Fi vs BT)
+                val isBt = state.connectionMode == ConnectionMode.BLUETOOTH
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (state.isLiveConnected) Color(0xFF0F291E) else CardDark,
+                    border = BorderStroke(1.dp, if (state.isLiveConnected) DotGreenMild else BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onBackToHub() }
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(CardDark)
-                            .border(BorderStroke(1.dp, BorderDark), RoundedCornerShape(10.dp))
-                            .clickable { onBackToHub() }
-                            .padding(horizontal = 10.dp, vertical = 7.dp)
-                            .testTag("controller_back_button")
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(if (state.isLiveConnected) DotGreenMild else DotAmberMild)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isBt) "ᛒ Bluetooth" else "📶 Wi-Fi",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (state.isLiveConnected) DotGreenMild else GraySecondary
+                        )
+                    }
+                }
+
+                // 3. Air Mouse Toggle
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (state.isAirMotionActive) Color(0xFF0284C7) else CardDark,
+                    border = BorderStroke(1.dp, if (state.isAirMotionActive) Color(0xFF38BDF8) else BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onToggleAirMotion() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (state.isAirMotionActive) "🪄 Air Mouse ON" else "🪄 Air Mouse",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (state.isAirMotionActive) Color.White else GraySecondary
+                        )
+                    }
+                }
+
+                // 4. Display Jump Button
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onJumpDisplay() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Settings",
-                            tint = WhitePrimary,
-                            modifier = Modifier.size(15.dp)
+                            imageVector = Icons.Default.DesktopWindows,
+                            contentDescription = "Display Jump",
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(14.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "Settings",
-                            fontSize = 12.sp,
+                            text = "Jump Screen",
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = WhitePrimary
+                            color = GraySecondary
                         )
                     }
+                }
 
-                    // Connection Status & Mode Badge
-                    val isBt = state.connectionMode == ConnectionMode.BLUETOOTH
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (state.isLiveConnected) Color(0xFF0F291E) else CardDark,
-                        border = BorderStroke(1.dp, if (state.isLiveConnected) DotGreenMild else BorderDark),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onBackToHub() }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(if (state.isLiveConnected) DotGreenMild else DotAmberMild)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = if (isBt) "ᛒ BT" else "📶 WiFi",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (state.isLiveConnected) DotGreenMild else GraySecondary
-                            )
+                // 5. Auto-Scroll Toggle
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (state.isAutoScrolling) DotGreenMild.copy(alpha = 0.2f) else CardDark,
+                    border = BorderStroke(1.dp, if (state.isAutoScrolling) DotGreenMild else BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable {
+                            if (state.isAutoScrolling) onStopAutoScroll()
+                            else onSetAutoScrollSpeed(2.0f)
                         }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (state.isAutoScrolling) "📜 Auto-Scroll ON" else "📜 Auto-Scroll",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (state.isAutoScrolling) DotGreenMild else GraySecondary
+                        )
                     }
                 }
 
-                // 2. Center: Quick Tools Cluster (Air Mouse, Display Jump, Auto-Scroll)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // 6. Keyboard Toggle
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isKbOpen) ElevatedSurface else CardDark,
+                    border = BorderStroke(1.dp, if (isKbOpen) Color(0xFF38BDF8) else BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onToggleKeyboard() }
+                        .testTag("controller_keyboard_button")
                 ) {
-                    // Air Mouse Toggle
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (state.isAirMotionActive) Color(0xFF0284C7) else CardDark,
-                        border = BorderStroke(1.dp, if (state.isAirMotionActive) Color(0xFF38BDF8) else BorderDark),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onToggleAirMotion() }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (state.isAirMotionActive) "🪄 AIR ON" else "🪄 AIR",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (state.isAirMotionActive) Color.White else GraySecondary
-                            )
-                        }
-                    }
-
-                    // Display Jump
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = CardDark,
-                        border = BorderStroke(1.dp, BorderDark),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onJumpDisplay() }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.DesktopWindows, contentDescription = "Display Jump", tint = Color(0xFF38BDF8), modifier = Modifier.size(13.dp))
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text("🖥️", fontSize = 10.5.sp)
-                        }
-                    }
-
-                    // Auto-Scroll Quick Toggle
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (state.isAutoScrolling) DotGreenMild.copy(alpha = 0.2f) else CardDark,
-                        border = BorderStroke(1.dp, if (state.isAutoScrolling) DotGreenMild else BorderDark),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                if (state.isAutoScrolling) onStopAutoScroll()
-                                else onSetAutoScrollSpeed(2.0f)
-                            }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (state.isAutoScrolling) "📜 ON" else "📜 SCROLL",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (state.isAutoScrolling) DotGreenMild else GraySecondary
-                            )
-                        }
-                    }
-                }
-
-                // 3. Right End: Compact Keyboard & Small Help Button
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Small Keyboard Toggle
-                    IconButton(
-                        onClick = onToggleKeyboard,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isKbOpen) ElevatedSurface else CardDark)
-                            .border(BorderStroke(1.dp, BorderDark), RoundedCornerShape(8.dp))
-                            .testTag("controller_keyboard_button")
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.Keyboard,
                             contentDescription = "Keyboard",
-                            tint = WhitePrimary,
-                            modifier = Modifier.size(16.dp)
+                            tint = if (isKbOpen) Color(0xFF38BDF8) else WhitePrimary,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "Keyboard",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isKbOpen) Color(0xFF38BDF8) else WhitePrimary
                         )
                     }
+                }
 
-                    // Very Small Help Button at Right End
-                    IconButton(
-                        onClick = { showHelpDialog = true },
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF1E293B))
-                            .border(BorderStroke(1.dp, Color(0xFF334155)), RoundedCornerShape(8.dp))
-                            .testTag("controller_help_button")
+                // 7. Touchpad Help Button
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFF1E293B),
+                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { showHelpDialog = true }
+                        .testTag("controller_help_button")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.HelpOutline,
                             contentDescription = "Touchpad Help",
                             tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "Help",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF38BDF8)
                         )
                     }
                 }

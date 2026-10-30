@@ -174,7 +174,8 @@ namespace AirGlideDesktop
                             {
                                 try
                                 {
-                                    _writer.WriteString("AIRGLIDE_ACK:Bluetooth\n");
+                                    var telem = NativeInput.GetLaptopTelemetry();
+                                    _writer.WriteString($"AIRGLIDE_ACK:Bluetooth:5055:{telem.batPct}:{(telem.isCharging ? 1 : 0)}:{telem.cpuPct}:{telem.ramPct}\n");
                                     await _writer.StoreAsync();
                                 }
                                 catch { }

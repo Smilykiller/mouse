@@ -62,11 +62,19 @@ fun TrackpadSurface(
     onScroll: (Float) -> Unit = {},
     onLeftDown: () -> Unit = {},
     onLeftUp: () -> Unit = {},
+    onZoom: (Boolean) -> Unit = {},
+    onWinTab: () -> Unit = {},
+    onWinD: () -> Unit = {},
+    onAltTab: () -> Unit = {},
+    onWinA: () -> Unit = {},
     theme: MousePadTheme = MousePadTheme.STEALTH,
     customImagePath: String? = null,
     dragLockActive: Boolean = false,
     onToggleDragLock: () -> Unit = {}
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val haptic = remember(context) { com.example.util.HapticFeedbackHelper(context) }
+
     val currentOnPointerMove by rememberUpdatedState(onPointerMove)
     val currentOnTap by rememberUpdatedState(onTap)
     val currentOnDoubleTap by rememberUpdatedState(onDoubleTap)
@@ -74,6 +82,11 @@ fun TrackpadSurface(
     val currentOnScroll by rememberUpdatedState(onScroll)
     val currentOnLeftDown by rememberUpdatedState(onLeftDown)
     val currentOnLeftUp by rememberUpdatedState(onLeftUp)
+    val currentOnZoom by rememberUpdatedState(onZoom)
+    val currentOnWinTab by rememberUpdatedState(onWinTab)
+    val currentOnWinD by rememberUpdatedState(onWinD)
+    val currentOnAltTab by rememberUpdatedState(onAltTab)
+    val currentOnWinA by rememberUpdatedState(onWinA)
 
     var touchPosition by remember { mutableStateOf<Offset?>(null) }
     var isTouching by remember { mutableStateOf(false) }
@@ -81,6 +94,7 @@ fun TrackpadSurface(
 
     var lastTapUpTime by remember { mutableStateOf(0L) }
     var lastTapPosition by remember { mutableStateOf(Offset.Zero) }
+    var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
 
     // Load custom gallery image if selected
     val customBitmap = remember(customImagePath, theme) {
@@ -200,12 +214,20 @@ fun TrackpadSurface(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     touchPosition = down.position
                     isTouching = true
+                    lastInteractionTime = System.currentTimeMillis()
                     val downTime = System.currentTimeMillis()
                     var hasMoved = false
                     var usedTwoFingers = false
                     var twoFingersMoved = false
+                    var usedThreeFingers = false
+                    var threeFingersTriggered = false
+                    var usedFourFingers = false
                     var lastPosition = down.position
                     var lastCenterY = 0f
+                    var initialSpan = 0f
+                    var lastSpan = 0f
+                    var threeFingerStartY = 0f
+                    var threeFingerStartX = 0f
 
                     // 1. Double-Tap and Drag Recognition
                     val isDoubleTapDrag = (downTime - lastTapUpTime < 320L) &&
@@ -215,6 +237,7 @@ fun TrackpadSurface(
                     if (isDoubleTapDrag) {
                         draggingStarted = true
                         isDragActive = true
+                        haptic.heavyClick()
                         currentOnLeftDown()
                     }
 
@@ -229,46 +252,105 @@ fun TrackpadSurface(
                                 isDragActive = false
                                 draggingStarted = false
                                 lastTapUpTime = 0L
+                            } else if (usedFourFingers && duration < 350L) {
+                                // 4-Finger Tap: Action Center
+                                haptic.heavyClick()
+                                currentOnWinA()
                             } else if (usedTwoFingers && !twoFingersMoved && duration < 380L) {
-                                // Two-finger tap = Right Click
+                                // Two-finger tap: Right Click
+                                haptic.heavyClick()
                                 currentOnLongPress()
-                            } else if (!hasMoved && !usedTwoFingers && enableTapToClick) {
+                            } else if (!hasMoved && !usedTwoFingers && !usedThreeFingers && !usedFourFingers && enableTapToClick) {
                                 if (duration < 280L) {
                                     lastTapUpTime = System.currentTimeMillis()
                                     lastTapPosition = down.position
+                                    haptic.click()
                                     currentOnTap()
                                 } else if (duration >= 500L) {
+                                    haptic.heavyClick()
                                     currentOnLongPress()
                                 }
                             }
                             break
                         }
 
-                        // 2. Two-Finger Gestures (Scroll & Right Click)
-                        if (pressed.size >= 2) {
-                            val centerY = pressed.map { it.position.y }.average().toFloat()
-                            if (!usedTwoFingers) {
-                                usedTwoFingers = true
-                                lastCenterY = centerY
-                            } else {
-                                val dy = centerY - lastCenterY
-                                lastCenterY = centerY
-                                if (Math.abs(dy) > 1.2f) {
-                                    twoFingersMoved = true
-                                    currentOnScroll(dy)
+                        // --- 4-Finger Gesture ---
+                        if (pressed.size >= 4) {
+                            usedFourFingers = true
+                            pressed.forEach { it.consume() }
+                            continue
+                        }
+
+                        // --- 3-Finger Windows Gestures ---
+                        if (pressed.size == 3) {
+                            val avgX = pressed.map { it.position.x }.average().toFloat()
+                            val avgY = pressed.map { it.position.y }.average().toFloat()
+                            if (!usedThreeFingers) {
+                                usedThreeFingers = true
+                                threeFingerStartX = avgX
+                                threeFingerStartY = avgY
+                            } else if (!threeFingersTriggered) {
+                                val dx = avgX - threeFingerStartX
+                                val dy = avgY - threeFingerStartY
+                                if (dy < -65f) {
+                                    // Swipe UP -> Task View
+                                    haptic.click()
+                                    currentOnWinTab()
+                                    threeFingersTriggered = true
+                                } else if (dy > 65f) {
+                                    // Swipe DOWN -> Show Desktop
+                                    haptic.click()
+                                    currentOnWinD()
+                                    threeFingersTriggered = true
+                                } else if (Math.abs(dx) > 65f) {
+                                    // Swipe LEFT/RIGHT -> Switch App
+                                    haptic.click()
+                                    currentOnAltTab()
+                                    threeFingersTriggered = true
                                 }
                             }
                             pressed.forEach { it.consume() }
                             continue
                         }
 
-                        if (usedTwoFingers) {
+                        // --- 2-Finger Gestures (Scroll, Pinch Zoom & Right Click) ---
+                        if (pressed.size == 2) {
+                            val span = (pressed[0].position - pressed[1].position).getDistance()
+                            val centerY = pressed.map { it.position.y }.average().toFloat()
+
+                            if (!usedTwoFingers) {
+                                usedTwoFingers = true
+                                lastCenterY = centerY
+                                initialSpan = span
+                                lastSpan = span
+                            } else {
+                                val spanDiff = span - lastSpan
+                                if (Math.abs(span - initialSpan) > 28f && Math.abs(spanDiff) > 12f) {
+                                    // Pinch to Zoom
+                                    twoFingersMoved = true
+                                    currentOnZoom(spanDiff > 0)
+                                    lastSpan = span
+                                } else {
+                                    val dy = centerY - lastCenterY
+                                    lastCenterY = centerY
+                                    if (Math.abs(dy) > 1.2f) {
+                                        twoFingersMoved = true
+                                        if (Math.abs(dy) > 6f) haptic.scrollTick()
+                                        currentOnScroll(dy)
+                                    }
+                                }
+                            }
+                            pressed.forEach { it.consume() }
+                            continue
+                        }
+
+                        if (usedTwoFingers || usedThreeFingers || usedFourFingers) {
                             lastPosition = pressed[0].position
                             pressed[0].consume()
                             continue
                         }
 
-                        // 3. Single Finger Movement & Drag Detection
+                        // --- 1-Finger Cursor Movement & Hold-to-Drag ---
                         val change = pressed[0]
                         val currentPos = change.position
                         val dx = currentPos.x - lastPosition.x
@@ -279,6 +361,7 @@ fun TrackpadSurface(
                         if (!hasMoved && !draggingStarted && elapsed > 380L) {
                             draggingStarted = true
                             isDragActive = true
+                            haptic.heavyClick()
                             currentOnLeftDown()
                         }
 

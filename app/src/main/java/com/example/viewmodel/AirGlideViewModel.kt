@@ -88,7 +88,12 @@ data class AirGlideUiState(
     val hostScrollFlash: Float = 0f,
     val hostPacketLogs: List<String> = emptyList(),
     val isHostRunning: Boolean = false,
-    val customQuickKeys: List<String> = com.example.model.KeyboardCatalog.DEFAULT_KEY_CODES
+    val customQuickKeys: List<String> = com.example.model.KeyboardCatalog.DEFAULT_KEY_CODES,
+    // Real-Time Laptop Telemetry (Battery, Charging, CPU, RAM)
+    val laptopTelemetry: com.example.model.LaptopTelemetry? = null,
+    // Custom Stream Deck Macros & Sub-modes
+    val customMacroTiles: List<com.example.model.CustomMacroTile> = emptyList(),
+    val deckActiveSubTab: String = "DECK"
 )
 
 /** The laptop counts as "live" when we heard from it within this window. */
@@ -322,6 +327,21 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
                 _uiState.update { it.copy(wifiDropStatus = status) }
             }
         }
+        viewModelScope.launch {
+            udpClient.telemetry.collect { telem ->
+                if (telem != null) {
+                    _uiState.update { it.copy(laptopTelemetry = telem) }
+                }
+            }
+        }
+        viewModelScope.launch {
+            bluetoothClient.telemetry.collect { telem ->
+                if (telem != null) {
+                    _uiState.update { it.copy(laptopTelemetry = telem) }
+                }
+            }
+        }
+        loadCustomMacroTiles()
 
         airMotionSensor.onMotionDelta = { dx, dy ->
             if (_uiState.value.isAirMotionActive) {
@@ -698,6 +718,204 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             com.example.installer.BluetoothDropManager.shareReceiverGeneric(context)
         }
+    }
+
+    // =========================================================================
+    // Multi-Finger Touchpad Gestures
+    // =========================================================================
+
+    fun onZoom(zoomIn: Boolean) {
+        haptics.scrollTick()
+        dispatchCommand(RemoteCommand.Action(if (zoomIn) "ZOOM_IN" else "ZOOM_OUT"))
+    }
+
+    fun onWinTab() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("WIN_TAB"))
+    }
+
+    fun onWinD() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("WIN_D"))
+    }
+
+    fun onAltTab() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("ALT_TAB"))
+    }
+
+    fun onWinA() {
+        haptics.heavyClick()
+        dispatchCommand(RemoteCommand.Action("WIN_A"))
+    }
+
+    // =========================================================================
+    // Presentation Remote & Stopwatch
+    // =========================================================================
+
+    fun slideNext() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("SLIDE_NEXT"))
+    }
+
+    fun slidePrev() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("SLIDE_PREV"))
+    }
+
+    fun slideStart() {
+        haptics.heavyClick()
+        dispatchCommand(RemoteCommand.Action("SLIDE_START"))
+    }
+
+    fun slideEnd() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("SLIDE_END"))
+    }
+
+    fun slideBlankB() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("SLIDE_BLANK_B"))
+    }
+
+    fun slideBlankW() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("SLIDE_BLANK_W"))
+    }
+
+    // =========================================================================
+    // Virtual Gamepad Mode
+    // =========================================================================
+
+    fun sendGamepadInput(btnCode: String) {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action(btnCode))
+    }
+
+    // =========================================================================
+    // Media Remote
+    // =========================================================================
+
+    fun mediaPlayPause() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("MEDIA_PLAY_PAUSE"))
+    }
+
+    fun mediaNext() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("MEDIA_NEXT"))
+    }
+
+    fun mediaPrev() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("MEDIA_PREV"))
+    }
+
+    fun mediaMute() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("VOLUME_MUTE"))
+    }
+
+    fun volumeUp() {
+        haptics.scrollTick()
+        dispatchCommand(RemoteCommand.Action("VOLUME_UP"))
+    }
+
+    fun volumeDown() {
+        haptics.scrollTick()
+        dispatchCommand(RemoteCommand.Action("VOLUME_DOWN"))
+    }
+
+    fun mediaRewind() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("MEDIA_REWIND"))
+    }
+
+    fun mediaForward() {
+        haptics.click()
+        dispatchCommand(RemoteCommand.Action("MEDIA_FORWARD"))
+    }
+
+    // =========================================================================
+    // In-App Custom Stream Deck & Macro Management
+    // =========================================================================
+
+    fun setDeckSubTab(tab: String) {
+        _uiState.update { it.copy(deckActiveSubTab = tab) }
+    }
+
+    fun triggerCustomMacro(tile: com.example.model.CustomMacroTile) {
+        haptics.click()
+        when (tile.actionType.uppercase()) {
+            "HOTKEY" -> dispatchCommand(RemoteCommand.Action("HOTKEY:${tile.actionPayload}"))
+            "URL" -> dispatchCommand(RemoteCommand.Text(tile.actionPayload))
+            else -> dispatchCommand(RemoteCommand.Action(tile.actionPayload.ifBlank { tile.title }))
+        }
+    }
+
+    fun addCustomMacroTile(tile: com.example.model.CustomMacroTile) {
+        val current = _uiState.value.customMacroTiles.toMutableList()
+        current.add(tile)
+        _uiState.update { it.copy(customMacroTiles = current) }
+        saveCustomMacroTiles(current)
+    }
+
+    fun removeCustomMacroTile(id: String) {
+        val current = _uiState.value.customMacroTiles.filter { it.id != id }
+        _uiState.update { it.copy(customMacroTiles = current) }
+        saveCustomMacroTiles(current)
+    }
+
+    private fun loadCustomMacroTiles() {
+        val raw = sharedPrefs.getString("custom_macro_tiles_v1", null)
+        if (raw.isNullOrBlank()) {
+            val defaults = listOf(
+                com.example.model.CustomMacroTile("snip", "Snipping Tool", "Win + Shift + S", "crop", 0xFF0284C7, "HOTKEY", "WIN+SHIFT+S"),
+                com.example.model.CustomMacroTile("taskmgr", "Task Manager", "Ctrl + Shift + Esc", "dashboard", 0xFF10B981, "HOTKEY", "CTRL+SHIFT+ESC"),
+                com.example.model.CustomMacroTile("closeapp", "Close Window", "Alt + F4", "close", 0xFFEF4444, "HOTKEY", "ALT+F4"),
+                com.example.model.CustomMacroTile("explorer", "File Explorer", "Win + E", "folder", 0xFFF59E0B, "HOTKEY", "WIN+E")
+            )
+            _uiState.update { it.copy(customMacroTiles = defaults) }
+            saveCustomMacroTiles(defaults)
+            return
+        }
+        try {
+            val jsonArr = org.json.JSONArray(raw)
+            val list = mutableListOf<com.example.model.CustomMacroTile>()
+            for (i in 0 until jsonArr.length()) {
+                val obj = jsonArr.getJSONObject(i)
+                list.add(
+                    com.example.model.CustomMacroTile(
+                        id = obj.getString("id"),
+                        title = obj.getString("title"),
+                        subtitle = obj.optString("subtitle", ""),
+                        iconName = obj.optString("iconName", "bolt"),
+                        colorHex = obj.optLong("colorHex", 0xFF8B5CF6),
+                        actionType = obj.optString("actionType", "HOTKEY"),
+                        actionPayload = obj.optString("actionPayload", "")
+                    )
+                )
+            }
+            _uiState.update { it.copy(customMacroTiles = list) }
+        } catch (_: Exception) {}
+    }
+
+    private fun saveCustomMacroTiles(list: List<com.example.model.CustomMacroTile>) {
+        try {
+            val jsonArr = org.json.JSONArray()
+            for (item in list) {
+                val obj = org.json.JSONObject()
+                obj.put("id", item.id)
+                obj.put("title", item.title)
+                obj.put("subtitle", item.subtitle)
+                obj.put("iconName", item.iconName)
+                obj.put("colorHex", item.colorHex)
+                obj.put("actionType", item.actionType)
+                obj.put("actionPayload", item.actionPayload)
+                jsonArr.put(obj)
+            }
+            sharedPrefs.edit().putString("custom_macro_tiles_v1", jsonArr.toString()).apply()
+        } catch (_: Exception) {}
     }
 
     private fun applyTarget(ip: String, port: Int, name: String?, manual: Boolean) {

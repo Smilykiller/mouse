@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -20,10 +21,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.DesktopWindows
@@ -67,6 +69,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.model.CustomMacroTile
+import com.example.ui.dialogs.AddMacroDialog
 import com.example.ui.theme.BorderDark
 import com.example.ui.theme.CardDark
 import com.example.ui.theme.DarkSurface
@@ -86,8 +90,82 @@ fun DeckScreen(
     onSwitchTab: (Int) -> Unit,
     onSetAutoScrollSpeed: (Float) -> Unit,
     onStopAutoScroll: () -> Unit,
+    onSetSubTab: (String) -> Unit = {},
+    onTriggerCustomMacro: (CustomMacroTile) -> Unit = {},
+    onAddCustomMacro: (CustomMacroTile) -> Unit = {},
+    onDeleteCustomMacro: (String) -> Unit = {},
+    // Presenter & Gamepad callbacks
+    onNextSlide: () -> Unit = {},
+    onPrevSlide: () -> Unit = {},
+    onStartSlideshow: () -> Unit = {},
+    onEndSlideshow: () -> Unit = {},
+    onBlankB: () -> Unit = {},
+    onBlankW: () -> Unit = {},
+    onToggleLaserPointer: (Boolean) -> Unit = {},
+    onGamepadButton: (String) -> Unit = {},
+    // Media callbacks
+    onMediaPlayPause: () -> Unit = {},
+    onMediaNext: () -> Unit = {},
+    onMediaPrev: () -> Unit = {},
+    onMediaMute: () -> Unit = {},
+    onMediaVolumeUp: () -> Unit = {},
+    onMediaVolumeDown: () -> Unit = {},
+    onMediaRewind: () -> Unit = {},
+    onMediaForward: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var showAddMacroDialog by remember { mutableStateOf(false) }
+
+    if (showAddMacroDialog) {
+        AddMacroDialog(
+            onDismiss = { showAddMacroDialog = false },
+            onSaveTile = { tile -> onAddCustomMacro(tile) }
+        )
+    }
+
+    // Switch between Sub-Tabs seamlessly
+    when (state.deckActiveSubTab) {
+        "PRESENT" -> {
+            PresentationScreen(
+                state = state,
+                onBack = { onSetSubTab("DECK") },
+                onNextSlide = onNextSlide,
+                onPrevSlide = onPrevSlide,
+                onStartSlideshow = onStartSlideshow,
+                onEndSlideshow = onEndSlideshow,
+                onBlankB = onBlankB,
+                onBlankW = onBlankW,
+                onToggleLaserPointer = onToggleLaserPointer
+            )
+            return
+        }
+        "GAMEPAD" -> {
+            GamepadScreen(
+                state = state,
+                onBack = { onSetSubTab("DECK") },
+                onButtonPress = onGamepadButton
+            )
+            return
+        }
+        "MEDIA" -> {
+            MediaRemoteScreen(
+                state = state,
+                onBack = { onSetSubTab("DECK") },
+                onPlayPause = onMediaPlayPause,
+                onNext = onMediaNext,
+                onPrev = onMediaPrev,
+                onMute = onMediaMute,
+                onVolumeUp = onMediaVolumeUp,
+                onVolumeDown = onMediaVolumeDown,
+                onRewind = onMediaRewind,
+                onForward = onMediaForward,
+                onLaunchSpotify = { onTriggerAction("SPOTIFY") }
+            )
+            return
+        }
+    }
+
+    // Default: Stream Deck & Productivity Tools
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -96,7 +174,7 @@ fun DeckScreen(
             .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Top Header
+        // --- Top Header ---
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -124,11 +202,22 @@ fun DeckScreen(
                     color = WhitePrimary
                 )
                 Text(
-                    text = "Stream deck, browser wheel & auto-scroller",
+                    text = "Stream deck, presentation, gamepad & media",
                     fontSize = 12.sp,
                     color = GraySecondary
                 )
             }
+        }
+
+        // --- Sub-Mode Selector Tabs ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            DeckSubModePill("🎛️ Deck", state.deckActiveSubTab == "DECK", Modifier.weight(1f)) { onSetSubTab("DECK") }
+            DeckSubModePill("📽️ Presenter", state.deckActiveSubTab == "PRESENT", Modifier.weight(1.1f)) { onSetSubTab("PRESENT") }
+            DeckSubModePill("🎮 Gamepad", state.deckActiveSubTab == "GAMEPAD", Modifier.weight(1f)) { onSetSubTab("GAMEPAD") }
+            DeckSubModePill("🎵 Media", state.deckActiveSubTab == "MEDIA", Modifier.weight(1f)) { onSetSubTab("MEDIA") }
         }
 
         // ==============================================================
@@ -162,28 +251,36 @@ fun DeckScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Multi-Monitor Quick Jump",
-                            fontWeight = FontWeight.Bold,
+                            text = "Multi-Monitor Snap",
                             fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
                             color = WhitePrimary
                         )
                         Text(
-                            text = "Teleports cursor between displays",
-                            fontSize = 11.sp,
+                            text = "Snap cursor instantly across displays",
+                            fontSize = 11.5.sp,
                             color = GraySecondary
                         )
                     }
                 }
 
-                Button(
-                    onClick = onJumpDisplay,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                    shape = RoundedCornerShape(10.dp)
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFF0284C7),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onJumpDisplay() }
                 ) {
-                    Text("Snap Display", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Snap ➔",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                    )
                 }
             }
         }
@@ -197,88 +294,69 @@ fun DeckScreen(
             border = BorderStroke(1.dp, BorderDark),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Tab, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("BROWSER TAB WHEEL", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GrayMuted, letterSpacing = 1.sp)
+                    Text(
+                        text = "BROWSER TAB ROTARY WHEEL",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GrayMuted,
+                        letterSpacing = 1.sp
+                    )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Slide across the wheel or tap buttons to flick through open browser tabs.",
-                    fontSize = 12.sp,
-                    color = GraySecondary
-                )
-                Spacer(modifier = Modifier.height(14.dp))
 
-                // Rotary Touch Surface
-                var dragAccumulator by remember { mutableFloatStateOf(0f) }
+                var dialOffset by remember { mutableFloatStateOf(0f) }
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(80.dp)
+                        .height(72.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(Color(0xFF1E293B), Color(0xFF0F172A), Color(0xFF1E293B))
-                            )
-                        )
+                        .background(ElevatedSurface)
+                        .border(BorderStroke(1.dp, Color(0xFF1E293B)), RoundedCornerShape(12.dp))
                         .pointerInput(Unit) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                dragAccumulator += dragAmount.x
-                                if (dragAccumulator > 38f) {
-                                    onSwitchTab(1) // Next tab (Ctrl + Tab)
-                                    dragAccumulator = 0f
-                                } else if (dragAccumulator < -38f) {
-                                    onSwitchTab(-1) // Prev tab (Ctrl + Shift + Tab)
-                                    dragAccumulator = 0f
+                            detectDragGestures { _, dragAmount ->
+                                dialOffset += dragAmount.x
+                                if (dialOffset > 40f) {
+                                    onSwitchTab(1)
+                                    dialOffset = 0f
+                                } else if (dialOffset < -40f) {
+                                    onSwitchTab(-1)
+                                    dialOffset = 0f
                                 }
                             }
                         },
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        Button(
-                            onClick = { onSwitchTab(-1) },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurface),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.height(38.dp)
+                        Text("◀ Previous", fontSize = 12.sp, color = GraySecondary)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Brush.radialGradient(listOf(Color(0xFF0284C7), Color(0xFF0F172A)))),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Prev Tab", modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Prev Tab", fontSize = 11.5.sp)
+                            Icon(Icons.Default.Tab, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         }
-
-                        Text(
-                            text = "↔ SWIPE OR SPIN ↔",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF38BDF8),
-                            letterSpacing = 1.sp
-                        )
-
-                        Button(
-                            onClick = { onSwitchTab(1) },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurface),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.height(38.dp)
-                        ) {
-                            Text("Next Tab", fontSize = 11.5.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(Icons.Default.ArrowForward, contentDescription = "Next Tab", modifier = Modifier.size(16.dp))
-                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text("Next ▶", fontSize = 12.sp, color = GraySecondary)
                     }
                 }
             }
         }
 
         // ==============================================================
-        // 3. TELEPROMPTER & SMOOTH AUTO-SCROLLER
+        // 3. AUTO-SCROLLER / TELEPROMPTER
         // ==============================================================
         Surface(
             shape = RoundedCornerShape(16.dp),
@@ -286,51 +364,46 @@ fun DeckScreen(
             border = BorderStroke(1.dp, BorderDark),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Speed, contentDescription = null, tint = DotGreenMild, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Speed, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("TELEPROMPTER AUTO-SCROLLER", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GrayMuted, letterSpacing = 1.sp)
+                        Text(
+                            text = "TELEPROMPTER AUTO-SCROLLER",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GrayMuted,
+                            letterSpacing = 1.sp
+                        )
                     }
 
                     if (state.isAutoScrolling) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = DotGreenMild.copy(alpha = 0.2f),
-                            border = BorderStroke(1.dp, DotGreenMild)
-                        ) {
-                            Text(
-                                text = "ACTIVE (${state.autoScrollSpeed.toInt()}x)",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = DotGreenMild,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
+                        Text(
+                            text = "● RUNNING",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = DotGreenMild
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Hands-free continuous scrolling for reading long documents, articles, code, or speech scripts.",
-                    fontSize = 12.sp,
-                    color = GraySecondary
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
-                        onClick = { onSetAutoScrollSpeed(1.5f) },
+                        onClick = { onSetAutoScrollSpeed(1.0f) },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (state.autoScrollSpeed == 1.5f) Color(0xFF0284C7) else DarkSurface
+                            containerColor = if (state.autoScrollSpeed == 1.0f) Color(0xFF0284C7) else DarkSurface
                         ),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.weight(1f)
@@ -339,14 +412,14 @@ fun DeckScreen(
                     }
 
                     Button(
-                        onClick = { onSetAutoScrollSpeed(3.0f) },
+                        onClick = { onSetAutoScrollSpeed(2.5f) },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (state.autoScrollSpeed == 3.0f) Color(0xFF0284C7) else DarkSurface
+                            containerColor = if (state.autoScrollSpeed == 2.5f) Color(0xFF0284C7) else DarkSurface
                         ),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Medium (2x)", fontSize = 11.sp)
+                        Text("Med (2x)", fontSize = 11.sp)
                     }
 
                     Button(
@@ -374,12 +447,65 @@ fun DeckScreen(
         }
 
         // ==============================================================
-        // 4. STREAM DECK GRID
+        // 4. USER CUSTOM MACRO TILES
+        // ==============================================================
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Bolt, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("CUSTOM MACROS", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GrayMuted, letterSpacing = 1.sp)
+            }
+
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color(0xFF0284C7),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { showAddMacroDialog = true }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Tile", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        }
+
+        // Grid of Custom Macro Tiles
+        val customTiles = state.customMacroTiles
+        if (customTiles.isNotEmpty()) {
+            for (chunk in customTiles.chunked(3)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    chunk.forEach { tile ->
+                        CustomDeckButton(
+                            tile = tile,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onTriggerCustomMacro(tile) }
+                        )
+                    }
+                    if (chunk.size < 3) {
+                        for (i in 0 until (3 - chunk.size)) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==============================================================
+        // 5. STANDARD STREAM DECK GRID
         // ==============================================================
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Dashboard, contentDescription = null, tint = Color(0xFFA78BFA), modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("STREAM DECK & SHORTCUTS", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GrayMuted, letterSpacing = 1.sp)
+            Text("STANDARD SHORTCUTS", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GrayMuted, letterSpacing = 1.sp)
         }
 
         // Category A: Quick Apps
@@ -409,21 +535,68 @@ fun DeckScreen(
             DeckActionButton("Format Code", Icons.Default.FormatPaint, Color(0xFF60A5FA), Modifier.weight(1f)) { onTriggerAction("FORMAT_CODE") }
         }
 
-        // Category C: Media & Volume Controls
-        Spacer(modifier = Modifier.height(4.dp))
-        DeckSectionHeader("🎬 MEDIA & SOUND PLAYBACK")
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DeckActionButton("Prev", Icons.Default.SkipPrevious, Color(0xFF94A3B8), Modifier.weight(1f)) { onTriggerAction("MEDIA_PREV") }
-            DeckActionButton("Play/Pause", Icons.Default.PlayArrow, Color(0xFF38BDF8), Modifier.weight(1f)) { onTriggerAction("MEDIA_PLAY_PAUSE") }
-            DeckActionButton("Next", Icons.Default.SkipNext, Color(0xFF94A3B8), Modifier.weight(1f)) { onTriggerAction("MEDIA_NEXT") }
-        }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DeckActionButton("Mute", Icons.Default.VolumeMute, Color(0xFFF87171), Modifier.weight(1f)) { onTriggerAction("VOLUME_MUTE") }
-            DeckActionButton("Vol -", Icons.Default.VolumeDown, Color(0xFF94A3B8), Modifier.weight(1f)) { onTriggerAction("VOLUME_DOWN") }
-            DeckActionButton("Vol +", Icons.Default.VolumeUp, Color(0xFF34D399), Modifier.weight(1f)) { onTriggerAction("VOLUME_UP") }
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun DeckSubModePill(
+    label: String,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = if (isSelected) Color(0xFF0284C7) else CardDark,
+        border = BorderStroke(1.dp, if (isSelected) Color(0xFF38BDF8) else BorderDark),
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .clickable { onClick() }
+    ) {
+        Box(
+            modifier = Modifier.padding(vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                fontSize = 11.5.sp,
+                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+                color = if (isSelected) Color.White else GraySecondary,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun CustomDeckButton(
+    tile: CustomMacroTile,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val accent = Color(tile.colorHex)
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = CardDark,
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.5f)),
+        modifier = modifier
+            .height(68.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(6.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(Icons.Default.Bolt, null, tint = accent, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(tile.title, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WhitePrimary, maxLines = 1)
+            Text(tile.subtitle, fontSize = 9.sp, color = GraySecondary, maxLines = 1)
+        }
     }
 }
 
@@ -457,7 +630,9 @@ private fun DeckActionButton(
             .clickable { onClick() }
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(6.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(6.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

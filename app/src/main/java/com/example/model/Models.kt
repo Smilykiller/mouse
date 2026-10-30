@@ -120,6 +120,24 @@ data class BluetoothDeviceInfo(
     val isPaired: Boolean = true
 )
 
+data class LaptopTelemetry(
+    val batteryPct: Int = 100,
+    val isCharging: Boolean = true,
+    val cpuPct: Int = 0,
+    val ramPct: Int = 0,
+    val lastUpdatedMs: Long = 0L
+)
+
+data class CustomMacroTile(
+    val id: String,
+    val title: String,
+    val subtitle: String = "",
+    val iconName: String = "bolt",
+    val colorHex: Long = 0xFF8B5CF6,
+    val actionType: String = "ACTION",
+    val actionPayload: String = ""
+)
+
 data class AppSettings(
     val targetHostIp: String = "192.168.1.100",
     val targetPort: Int = 5055,

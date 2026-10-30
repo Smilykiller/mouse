@@ -32,6 +32,89 @@ namespace AirGlideDesktop
         [DllImport("user32.dll")]
         private static extern bool GetCursorPos(out POINT lpPoint);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GetSystemTimes(out long lpIdleTime, out long lpKernelTime, out long lpUserTime);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        private class MEMORYSTATUSEX
+        {
+            public uint dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
+            public uint dwMemoryLoad;
+            public ulong ullTotalPhys;
+            public ulong ullAvailPhys;
+            public ulong ullTotalPageFile;
+            public ulong ullAvailPageFile;
+            public ulong ullTotalVirtual;
+            public ulong ullAvailVirtual;
+            public ulong ullAvailExtendedVirtual;
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GlobalMemoryStatusEx([In, Out] MEMORYSTATUSEX lpBuffer);
+
+        private static long _prevIdleTime = 0;
+        private static long _prevKernelTime = 0;
+        private static long _prevUserTime = 0;
+        private static int _lastCpuUsage = 0;
+        private static DateTime _lastCpuSample = DateTime.MinValue;
+
+        public static (int batPct, bool isCharging, int cpuPct, int ramPct) GetLaptopTelemetry()
+        {
+            // 1. Battery Telemetry
+            int batPct = 100;
+            bool isCharging = true;
+            try
+            {
+                var pwr = SystemInformation.PowerStatus;
+                batPct = (int)Math.Round(pwr.BatteryLifePercent * 100f);
+                if (batPct < 0 || batPct > 100) batPct = 100;
+                isCharging = pwr.PowerLineStatus == PowerLineStatus.Online;
+            }
+            catch { }
+
+            // 2. RAM Telemetry
+            int ramPct = 50;
+            try
+            {
+                var mem = new MEMORYSTATUSEX();
+                if (GlobalMemoryStatusEx(mem))
+                {
+                    ramPct = (int)mem.dwMemoryLoad;
+                }
+            }
+            catch { }
+
+            // 3. CPU Telemetry
+            int cpuPct = _lastCpuUsage;
+            try
+            {
+                if ((DateTime.UtcNow - _lastCpuSample).TotalMilliseconds > 800)
+                {
+                    if (GetSystemTimes(out long idle, out long kernel, out long user))
+                    {
+                        if (_prevKernelTime != 0 && _prevUserTime != 0)
+                        {
+                            long total = (kernel - _prevKernelTime) + (user - _prevUserTime);
+                            long idleDiff = idle - _prevIdleTime;
+                            if (total > 0)
+                            {
+                                cpuPct = (int)Math.Max(0, Math.Min(100, 100 - (idleDiff * 100 / total)));
+                                _lastCpuUsage = cpuPct;
+                            }
+                        }
+                        _prevIdleTime = idle;
+                        _prevKernelTime = kernel;
+                        _prevUserTime = user;
+                        _lastCpuSample = DateTime.UtcNow;
+                    }
+                }
+            }
+            catch { }
+
+            return (batPct, isCharging, cpuPct, ramPct);
+        }
+
         [StructLayout(LayoutKind.Sequential)]
         public struct POINT
         {
@@ -519,7 +602,238 @@ namespace AirGlideDesktop
                     keybd_event(0xBB, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
                     keybd_event(0x5B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
                     break;
+
+                // --- Windows Multi-Finger Gestures ---
+                case "WIN_TAB":
+                    // Win + Tab (Task View)
+                    keybd_event(0x5B, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x09, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x09, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x5B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "WIN_D":
+                    // Win + D (Show Desktop)
+                    keybd_event(0x5B, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x44, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x44, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x5B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "ALT_TAB":
+                    // Alt + Tab (Switch App)
+                    keybd_event(0x12, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x09, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x09, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x12, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "WIN_A":
+                    // Win + A (Action Center / Notifications)
+                    keybd_event(0x5B, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x41, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x41, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x5B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "ZOOM_IN":
+                    // Ctrl + Wheel Up
+                    keybd_event(0x11, 0, 0, UIntPtr.Zero);
+                    mouse_event(MOUSEEVENTF_WHEEL, 0, 0, 120, UIntPtr.Zero);
+                    keybd_event(0x11, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "ZOOM_OUT":
+                    // Ctrl + Wheel Down
+                    keybd_event(0x11, 0, 0, UIntPtr.Zero);
+                    mouse_event(MOUSEEVENTF_WHEEL, 0, 0, unchecked((uint)-120), UIntPtr.Zero);
+                    keybd_event(0x11, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+
+                // --- Presentation Remote Mode ---
+                case "SLIDE_NEXT":
+                    // Page Down or Right Arrow
+                    keybd_event(0x22, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x22, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "SLIDE_PREV":
+                    // Page Up or Left Arrow
+                    keybd_event(0x21, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x21, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "SLIDE_START":
+                    // F5 (Start Slideshow)
+                    keybd_event(0x74, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x74, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "SLIDE_END":
+                    // Escape (Exit Slideshow)
+                    keybd_event(0x1B, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x1B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "SLIDE_BLANK_B":
+                    // 'B' key (Blank black screen in PPT/Keynote)
+                    keybd_event(0x42, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x42, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "SLIDE_BLANK_W":
+                    // 'W' key (Blank white screen in PPT/Keynote)
+                    keybd_event(0x57, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x57, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+
+                // --- Media Navigation ---
+                case "MEDIA_REWIND":
+                    // Left Arrow (or 'J' in YouTube)
+                    keybd_event(0x25, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x25, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "MEDIA_FORWARD":
+                    // Right Arrow (or 'L' in YouTube)
+                    keybd_event(0x27, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x27, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+
+                // --- Virtual Gamepad Mode ---
+                case "GP_UP":
+                    keybd_event(0x26, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x26, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "GP_DOWN":
+                    keybd_event(0x28, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x28, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "GP_LEFT":
+                    keybd_event(0x25, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x25, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "GP_RIGHT":
+                    keybd_event(0x27, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x27, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "GP_A":
+                    // Space
+                    keybd_event(0x20, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x20, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "GP_B":
+                    // Escape
+                    keybd_event(0x1B, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x1B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "GP_X":
+                    // 'Z' key
+                    keybd_event(0x5A, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x5A, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "GP_Y":
+                    // 'X' key
+                    keybd_event(0x58, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x58, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "GP_LB":
+                    // 'Q' key
+                    keybd_event(0x51, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x51, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "GP_RB":
+                    // 'E' key
+                    keybd_event(0x45, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x45, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "GP_START":
+                    // Enter
+                    keybd_event(0x0D, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x0D, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "GP_SELECT":
+                    // Tab
+                    keybd_event(0x09, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x09, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+
+                default:
+                    if (act.StartsWith("HOTKEY:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ExecuteCustomHotkey(act.Substring(7));
+                    }
+                    break;
             }
+        }
+
+        private static void ExecuteCustomHotkey(string hotkeySpec)
+        {
+            try
+            {
+                string[] parts = hotkeySpec.Split(new[] { '+', '-' }, StringSplitOptions.RemoveEmptyEntries);
+                List<byte> pressedModifiers = new List<byte>();
+                byte mainKey = 0;
+
+                foreach (string rawPart in parts)
+                {
+                    string p = rawPart.Trim().ToUpperInvariant();
+                    switch (p)
+                    {
+                        case "CTRL":
+                        case "CONTROL":
+                            pressedModifiers.Add(0x11);
+                            break;
+                        case "SHIFT":
+                            pressedModifiers.Add(0x10);
+                            break;
+                        case "ALT":
+                            pressedModifiers.Add(0x12);
+                            break;
+                        case "WIN":
+                        case "WINDOWS":
+                            pressedModifiers.Add(0x5B);
+                            break;
+                        case "ESC":
+                        case "ESCAPE":
+                            mainKey = 0x1B;
+                            break;
+                        case "ENTER":
+                            mainKey = 0x0D;
+                            break;
+                        case "TAB":
+                            mainKey = 0x09;
+                            break;
+                        case "SPACE":
+                            mainKey = 0x20;
+                            break;
+                        case "DELETE":
+                        case "DEL":
+                            mainKey = 0x2E;
+                            break;
+                        default:
+                            if (p.Length == 1)
+                            {
+                                short vk = VkKeyScan(p[0]);
+                                if (vk != -1) mainKey = (byte)(vk & 0xFF);
+                            }
+                            else if (p.StartsWith("F") && int.TryParse(p.Substring(1), out int fNum) && fNum >= 1 && fNum <= 12)
+                            {
+                                mainKey = (byte)(0x6F + fNum);
+                            }
+                            break;
+                    }
+                }
+
+                // Press modifiers down
+                foreach (byte mod in pressedModifiers)
+                {
+                    keybd_event(mod, 0, 0, UIntPtr.Zero);
+                }
+
+                // Tap main key
+                if (mainKey != 0)
+                {
+                    keybd_event(mainKey, 0, 0, UIntPtr.Zero);
+                    keybd_event(mainKey, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                }
+
+                // Release modifiers in reverse
+                for (int i = pressedModifiers.Count - 1; i >= 0; i--)
+                {
+                    keybd_event(pressedModifiers[i], 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                }
+            }
+            catch { }
         }
 
         private static void TryLaunch(string fileName, string args)

@@ -346,6 +346,23 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                                 onDisconnect = { viewModel.disconnectFromDevice() },
                                 onLeftDown = { viewModel.onLeftDown() },
                                 onLeftUp = { viewModel.onLeftUp() },
+                                onZoom = { zoomIn -> viewModel.onZoom(zoomIn) },
+                                onWinTab = { viewModel.onWinTab() },
+                                onWinD = { viewModel.onWinD() },
+                                onAltTab = { viewModel.onAltTab() },
+                                onWinA = { viewModel.onWinA() },
+                                onOpenPresenter = {
+                                    viewModel.setDeckSubTab("PRESENT")
+                                    viewModel.selectTab(AppNavTab.DECK)
+                                },
+                                onOpenGamepad = {
+                                    viewModel.setDeckSubTab("GAMEPAD")
+                                    viewModel.selectTab(AppNavTab.DECK)
+                                },
+                                onOpenMediaRemote = {
+                                    viewModel.setDeckSubTab("MEDIA")
+                                    viewModel.selectTab(AppNavTab.DECK)
+                                },
                                 onToggleAirMotion = { viewModel.toggleAirMotion() },
                                 onJumpDisplay = { viewModel.jumpDisplay() },
                                 onSwitchTab = { dir -> viewModel.switchTab(dir) },
@@ -370,7 +387,29 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                             onJumpDisplay = { viewModel.jumpDisplay() },
                             onSwitchTab = { dir -> viewModel.switchTab(dir) },
                             onSetAutoScrollSpeed = { spd -> viewModel.setAutoScrollSpeed(spd) },
-                            onStopAutoScroll = { viewModel.stopAutoScroll() }
+                            onStopAutoScroll = { viewModel.stopAutoScroll() },
+                            onSetSubTab = { tab -> viewModel.setDeckSubTab(tab) },
+                            onTriggerCustomMacro = { tile -> viewModel.triggerCustomMacro(tile) },
+                            onAddCustomMacro = { tile -> viewModel.addCustomMacroTile(tile) },
+                            onDeleteCustomMacro = { id -> viewModel.removeCustomMacroTile(id) },
+                            onNextSlide = { viewModel.slideNext() },
+                            onPrevSlide = { viewModel.slidePrev() },
+                            onStartSlideshow = { viewModel.slideStart() },
+                            onEndSlideshow = { viewModel.slideEnd() },
+                            onBlankB = { viewModel.slideBlankB() },
+                            onBlankW = { viewModel.slideBlankW() },
+                            onToggleLaserPointer = { active ->
+                                if (active != uiState.isAirMotionActive) viewModel.toggleAirMotion()
+                            },
+                            onGamepadButton = { btn -> viewModel.sendGamepadInput(btn) },
+                            onMediaPlayPause = { viewModel.mediaPlayPause() },
+                            onMediaNext = { viewModel.mediaNext() },
+                            onMediaPrev = { viewModel.mediaPrev() },
+                            onMediaMute = { viewModel.mediaMute() },
+                            onMediaVolumeUp = { viewModel.volumeUp() },
+                            onMediaVolumeDown = { viewModel.volumeDown() },
+                            onMediaRewind = { viewModel.mediaRewind() },
+                            onMediaForward = { viewModel.mediaForward() }
                         )
                     }
 

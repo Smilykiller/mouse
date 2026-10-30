@@ -165,6 +165,76 @@ fun HubSettingsScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            // Laptop Telemetry HUD Card
+            val telem = state.laptopTelemetry
+            if (telem != null && state.isLiveConnected) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF0F172A),
+                    border = BorderStroke(1.dp, Color(0xFF1E293B)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🔋", fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Laptop Battery: ${telem.batteryPct}%${if (telem.isCharging) " ⚡" else ""}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (telem.batteryPct < 20 && !telem.isCharging) DotAmberMild else WhitePrimary
+                                )
+                                Text(
+                                    text = if (telem.isCharging) "Plugged in • Charging" else "Running on Battery",
+                                    fontSize = 10.5.sp,
+                                    color = GraySecondary
+                                )
+                            }
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFF1E293B)
+                            ) {
+                                Text(
+                                    text = "CPU ${telem.cpuPct}%",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF38BDF8),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                )
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFF1E293B)
+                            ) {
+                                Text(
+                                    text = "RAM ${telem.ramPct}%",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFA78BFA),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
             // Primary Launch Controller Button
             Button(
                 onClick = { onOpenMousepad() },

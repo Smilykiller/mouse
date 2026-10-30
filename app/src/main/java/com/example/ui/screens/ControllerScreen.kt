@@ -93,6 +93,14 @@ fun ControllerScreen(
     onDisconnect: () -> Unit,
     onLeftDown: () -> Unit = {},
     onLeftUp: () -> Unit = {},
+    onZoom: (Boolean) -> Unit = {},
+    onWinTab: () -> Unit = {},
+    onWinD: () -> Unit = {},
+    onAltTab: () -> Unit = {},
+    onWinA: () -> Unit = {},
+    onOpenPresenter: () -> Unit = {},
+    onOpenGamepad: () -> Unit = {},
+    onOpenMediaRemote: () -> Unit = {},
     onToggleAirMotion: () -> Unit = {},
     onJumpDisplay: () -> Unit = {},
     onSwitchTab: (Int) -> Unit = {},
@@ -192,6 +200,95 @@ fun ControllerScreen(
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (state.isLiveConnected) DotGreenMild else GraySecondary
+                        )
+                    }
+                }
+
+                // 2b. Laptop Telemetry HUD Badge
+                val telem = state.laptopTelemetry
+                if (telem != null) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = CardDark,
+                        border = BorderStroke(1.dp, BorderDark),
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "🔋 ${telem.batteryPct}%${if (telem.isCharging) " ⚡" else ""} • CPU ${telem.cpuPct}%",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (telem.batteryPct < 20 && !telem.isCharging) DotAmberMild else Color(0xFF38BDF8)
+                            )
+                        }
+                    }
+                }
+
+                // 2c. Presenter Mode Pill
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onOpenPresenter() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "📽️ Presenter",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GraySecondary
+                        )
+                    }
+                }
+
+                // 2d. Virtual Gamepad Pill
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onOpenGamepad() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🎮 Gamepad",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GraySecondary
+                        )
+                    }
+                }
+
+                // 2e. Media Remote Pill
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onOpenMediaRemote() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🎵 Media",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GraySecondary
                         )
                     }
                 }
@@ -353,6 +450,11 @@ fun ControllerScreen(
                             onScroll = onScroll,
                             onLeftDown = onLeftDown,
                             onLeftUp = onLeftUp,
+                            onZoom = onZoom,
+                            onWinTab = onWinTab,
+                            onWinD = onWinD,
+                            onAltTab = onAltTab,
+                            onWinA = onWinA,
                             theme = state.selectedTheme,
                             customImagePath = state.customImagePath,
                             dragLockActive = state.dragLockActive,
@@ -381,6 +483,11 @@ fun ControllerScreen(
                         onScroll = onScroll,
                         onLeftDown = onLeftDown,
                         onLeftUp = onLeftUp,
+                        onZoom = onZoom,
+                        onWinTab = onWinTab,
+                        onWinD = onWinD,
+                        onAltTab = onAltTab,
+                        onWinA = onWinA,
                         theme = state.selectedTheme,
                         customImagePath = state.customImagePath,
                         dragLockActive = state.dragLockActive,
@@ -402,6 +509,11 @@ fun ControllerScreen(
                         onScroll = onScroll,
                         onLeftDown = onLeftDown,
                         onLeftUp = onLeftUp,
+                        onZoom = onZoom,
+                        onWinTab = onWinTab,
+                        onWinD = onWinD,
+                        onAltTab = onAltTab,
+                        onWinA = onWinA,
                         theme = state.selectedTheme,
                         customImagePath = state.customImagePath,
                         dragLockActive = state.dragLockActive,

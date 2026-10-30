@@ -63,6 +63,9 @@ class BluetoothClient(
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
+    private val _telemetry = MutableStateFlow<com.example.model.LaptopTelemetry?>(null)
+    val telemetry: StateFlow<com.example.model.LaptopTelemetry?> = _telemetry.asStateFlow()
+
     private val packetChannel = Channel<String>(capacity = 1024)
 
     private var connectJob: Job? = null
@@ -251,7 +254,20 @@ class BluetoothClient(
                 while (isActive && btSocket.isConnected) {
                     val line = reader.readLine() ?: break
                     if (line.startsWith("AIRGLIDE_ACK")) {
-                        // Handshake confirmed
+                        val parts = line.split(":")
+                        if (parts.size >= 7) {
+                            val bat = parts[3].toIntOrNull() ?: 100
+                            val isChg = parts[4] == "1"
+                            val cpu = parts[5].toIntOrNull() ?: 0
+                            val ram = parts[6].toIntOrNull() ?: 0
+                            _telemetry.value = com.example.model.LaptopTelemetry(
+                                batteryPct = bat,
+                                isCharging = isChg,
+                                cpuPct = cpu,
+                                ramPct = ram,
+                                lastUpdatedMs = System.currentTimeMillis()
+                            )
+                        }
                     }
                 }
             } catch (e: Exception) {

@@ -216,7 +216,8 @@ namespace AirGlideDesktop
 
             if (cmd == "P")
             {
-                Reply($"AIRGLIDE_ACK:{HostName}:{Port}", sender);
+                var telem = NativeInput.GetLaptopTelemetry();
+                Reply($"AIRGLIDE_ACK:{HostName}:{Port}:{telem.batPct}:{(telem.isCharging ? 1 : 0)}:{telem.cpuPct}:{telem.ramPct}", sender);
                 return;
             }
 

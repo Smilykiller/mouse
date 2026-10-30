@@ -55,6 +55,9 @@ data class AirGlideUiState(
     val isWifiEnabled: Boolean = true,
     val isBluetoothEnabled: Boolean = false,
     val isLocalNetworkActive: Boolean = true,
+    val bluetoothDevices: List<com.example.model.BluetoothDeviceInfo> = emptyList(),
+    val selectedBluetoothDevice: com.example.model.BluetoothDeviceInfo? = null,
+    val bluetoothStatus: String = "Disconnected",
     val discoveredHosts: List<DiscoveredHost> = emptyList(),
     val deviceHistory: List<DeviceHistoryItem> = emptyList(),
     // Host Mode State
@@ -83,6 +86,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
 
     private val udpClient: UdpClient
     private val udpHostServer: UdpHostServer
+    val bluetoothClient: com.example.network.BluetoothClient
 
     private var scrollAccumulator: Float = 0f
     private var manualTarget: Boolean = false
@@ -129,6 +133,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
 
         udpClient = UdpClient(deviceId, deviceName, viewModelScope)
         udpHostServer = UdpHostServer(viewModelScope)
+        bluetoothClient = com.example.network.BluetoothClient(deviceId, deviceName, viewModelScope)
 
         val history = loadDeviceHistory(defaultTargetIp, savedPort)
         val wifiOn = NetworkUtils.isWifiHardwareEnabled(application)
@@ -231,6 +236,32 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
                 _uiState.update { it.copy(hostClickFlash = btn) }
             }
         }
+        viewModelScope.launch {
+            bluetoothClient.isConnected.collect { connected ->
+                if (_uiState.value.connectionMode == ConnectionMode.BLUETOOTH) {
+                    _uiState.update { it.copy(isLiveConnected = connected) }
+                }
+            }
+        }
+        viewModelScope.launch {
+            bluetoothClient.connectionStatus.collect { status ->
+                _uiState.update { it.copy(bluetoothStatus = status) }
+            }
+        }
+        viewModelScope.launch {
+            bluetoothClient.connectedDeviceName.collect { name ->
+                if (_uiState.value.connectionMode == ConnectionMode.BLUETOOTH && name != null) {
+                    _uiState.update { it.copy(activeHostName = name) }
+                }
+            }
+        }
+        viewModelScope.launch {
+            bluetoothClient.packetsSent.collect { count ->
+                if (_uiState.value.connectionMode == ConnectionMode.BLUETOOTH) {
+                    _uiState.update { it.copy(packetsSent = count) }
+                }
+            }
+        }
 
         airMotionSensor.onMotionDelta = { dx, dy ->
             if (_uiState.value.isAirMotionActive) {
@@ -273,6 +304,56 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    private fun dispatchCommand(command: RemoteCommand) {
+        if (_uiState.value.connectionMode == ConnectionMode.BLUETOOTH) {
+            bluetoothClient.send(command.toWireString(deviceId))
+        } else {
+            udpClient.sendCommand(command)
+        }
+    }
+
+    fun scanBluetoothDevices() {
+        val devices = bluetoothClient.getPairedDevices()
+        _uiState.update { it.copy(bluetoothDevices = devices) }
+    }
+
+    fun connectBluetooth(device: com.example.model.BluetoothDeviceInfo) {
+        _uiState.update {
+            it.copy(
+                selectedBluetoothDevice = device,
+                connectionMode = ConnectionMode.BLUETOOTH,
+                activeHostName = device.name
+            )
+        }
+        bluetoothClient.connect(device.address, device.name)
+    }
+
+    fun disconnectBluetooth() {
+        bluetoothClient.disconnect()
+        _uiState.update { it.copy(selectedBluetoothDevice = null, isLiveConnected = false) }
+    }
+
+    fun setConnectionMode(mode: ConnectionMode) {
+        _uiState.update { it.copy(connectionMode = mode) }
+        if (mode == ConnectionMode.BLUETOOTH) {
+            scanBluetoothDevices()
+            _uiState.update {
+                it.copy(
+                    isLiveConnected = bluetoothClient.isConnected.value,
+                    activeHostName = bluetoothClient.connectedDeviceName.value ?: "Bluetooth Host"
+                )
+            }
+        } else {
+            val live = (System.currentTimeMillis() - udpClient.lastAckMs) <= LIVE_WINDOW_MS
+            _uiState.update {
+                it.copy(
+                    isLiveConnected = live,
+                    activeHostName = sharedPrefs.getString("target_ip", "Laptop") ?: "Laptop"
+                )
+            }
+        }
+    }
+
     fun onPointerMove(rawDx: Float, rawDy: Float) {
         val sensitivity = _uiState.value.settings.sensitivity
         val speedSq = rawDx * rawDx + rawDy * rawDy
@@ -287,7 +368,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         if (intDx != 0 || intDy != 0) {
             moveAccumulatorX -= intDx
             moveAccumulatorY -= intDy
-            udpClient.sendCommand(RemoteCommand.Move(intDx.toFloat(), intDy.toFloat()))
+            dispatchCommand(RemoteCommand.Move(intDx.toFloat(), intDy.toFloat()))
         }
     }
 
@@ -303,7 +384,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
             if (settings.hapticFeedback) {
                 haptics.scrollTick()
             }
-            udpClient.sendCommand(RemoteCommand.Scroll(steps.toFloat()))
+            dispatchCommand(RemoteCommand.Scroll(steps.toFloat()))
         }
     }
 
@@ -314,12 +395,12 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
             if (_uiState.value.settings.hapticFeedback) {
                 haptics.heavyClick()
             }
-            udpClient.sendCommand(RemoteCommand.MouseUp(ClickButton.LEFT))
+            dispatchCommand(RemoteCommand.MouseUp(ClickButton.LEFT))
         } else {
             if (_uiState.value.settings.hapticFeedback) {
                 haptics.click()
             }
-            udpClient.sendCommand(RemoteCommand.Click(ClickButton.LEFT))
+            dispatchCommand(RemoteCommand.Click(ClickButton.LEFT))
         }
     }
 
@@ -327,14 +408,14 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         if (_uiState.value.settings.hapticFeedback) {
             haptics.heavyClick()
         }
-        udpClient.sendCommand(RemoteCommand.Click(ClickButton.RIGHT))
+        dispatchCommand(RemoteCommand.Click(ClickButton.RIGHT))
     }
 
     fun onMiddleClick() {
         if (_uiState.value.settings.hapticFeedback) {
             haptics.click()
         }
-        udpClient.sendCommand(RemoteCommand.Click(ClickButton.MIDDLE))
+        dispatchCommand(RemoteCommand.Click(ClickButton.MIDDLE))
     }
 
     fun toggleDragLock() {
@@ -344,9 +425,9 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
             haptics.heavyClick()
         }
         if (newLock) {
-            udpClient.sendCommand(RemoteCommand.MouseDown(ClickButton.LEFT))
+            dispatchCommand(RemoteCommand.MouseDown(ClickButton.LEFT))
         } else {
-            udpClient.sendCommand(RemoteCommand.MouseUp(ClickButton.LEFT))
+            dispatchCommand(RemoteCommand.MouseUp(ClickButton.LEFT))
         }
     }
 
@@ -354,12 +435,12 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         if (_uiState.value.settings.hapticFeedback) {
             haptics.click()
         }
-        udpClient.sendCommand(RemoteCommand.Key(key))
+        dispatchCommand(RemoteCommand.Key(key))
     }
 
     fun onTextEntered(text: String) {
         if (text.isNotEmpty()) {
-            udpClient.sendCommand(RemoteCommand.Text(text))
+            dispatchCommand(RemoteCommand.Text(text))
             _uiState.update { it.copy(keyboardInputText = "") }
         }
     }
@@ -441,7 +522,10 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         if (_uiState.value.settings.hapticFeedback) {
             haptics.heavyClick()
         }
-        udpClient.sendCommand(RemoteCommand.Disconnect)
+        dispatchCommand(RemoteCommand.Disconnect)
+        if (_uiState.value.connectionMode == ConnectionMode.BLUETOOTH) {
+            bluetoothClient.disconnect()
+        }
         manualTarget = true
         sharedPrefs.edit()
             .putString("target_ip", "")
@@ -451,6 +535,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
             it.copy(
                 isLiveConnected = false,
                 activeHostName = "Disconnected",
+                selectedBluetoothDevice = null,
                 settings = it.settings.copy(targetHostIp = "")
             )
         }
@@ -474,10 +559,6 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         } else {
             udpHostServer.stop()
         }
-    }
-
-    fun setConnectionMode(mode: ConnectionMode) {
-        _uiState.update { it.copy(connectionMode = mode) }
     }
 
     fun selectHostActiveDevice(deviceId: String) {
@@ -535,7 +616,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         if (_uiState.value.settings.hapticFeedback) {
             haptics.click()
         }
-        udpClient.sendCommand(RemoteCommand.Key("PAGE_UP"))
+        dispatchCommand(RemoteCommand.Key("PAGE_UP"))
         return true
     }
 
@@ -544,7 +625,7 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
         if (_uiState.value.settings.hapticFeedback) {
             haptics.click()
         }
-        udpClient.sendCommand(RemoteCommand.Key("PAGE_DOWN"))
+        dispatchCommand(RemoteCommand.Key("PAGE_DOWN"))
         return true
     }
 

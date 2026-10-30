@@ -27,10 +27,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Laptop
+import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -51,10 +54,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.MousePadTheme
+import com.example.model.TouchpadLayout
 import com.example.ui.theme.BorderDark
 import com.example.ui.theme.CardDark
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.ElevatedSurface
 import com.example.ui.theme.GrayMuted
 import com.example.ui.theme.GraySecondary
 import com.example.ui.theme.TrueBlack
@@ -65,8 +67,10 @@ import java.io.File
 fun ThemesScreen(
     currentTheme: MousePadTheme,
     customImagePath: String?,
+    currentLayout: TouchpadLayout,
     onSelectTheme: (MousePadTheme) -> Unit,
     onSetCustomImage: (String?) -> Unit,
+    onSelectLayout: (TouchpadLayout) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -134,20 +138,94 @@ fun ThemesScreen(
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "Mouse Pad Designs",
+                    text = "Layout & Pad Designs",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = WhitePrimary
                 )
                 Text(
-                    text = "Customize the look and feel of your touchpad surface",
+                    text = "Configure control ergonomics and choose unique surface styles",
                     fontSize = 12.sp,
                     color = GraySecondary
                 )
             }
         }
 
-        // 1. Custom Photo Section (Featured Card)
+        // ==============================================================
+        // 1. TOUCHPAD CONTROL LAYOUT (Moved from trackpad for clean screen)
+        // ==============================================================
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Tune,
+                contentDescription = null,
+                tint = Color(0xFF38BDF8),
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "TOUCHPAD CONTROL LAYOUT",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = GrayMuted,
+                letterSpacing = 1.sp
+            )
+        }
+
+        // Layout Cards
+        LayoutSelectorCard(
+            title = "Split Layout",
+            subtitle = "Large trackpad + dedicated scroll strip + twin bottom click boxes",
+            isSelected = currentLayout == TouchpadLayout.SPLIT,
+            icon = Icons.Default.Mouse,
+            accentColor = Color(0xFF38BDF8),
+            onSelect = { onSelectLayout(TouchpadLayout.SPLIT) }
+        )
+
+        LayoutSelectorCard(
+            title = "Classic Laptop",
+            subtitle = "Traditional laptop trackpad with dual bottom left & right click buttons",
+            isSelected = currentLayout == TouchpadLayout.CLASSIC,
+            icon = Icons.Default.Laptop,
+            accentColor = Color(0xFF34D399),
+            onSelect = { onSelectLayout(TouchpadLayout.CLASSIC) }
+        )
+
+        LayoutSelectorCard(
+            title = "Gesture Surface",
+            subtitle = "100% full-screen gesture pad with tap-to-click, 2-finger scroll & drag lock",
+            isSelected = currentLayout == TouchpadLayout.GESTURE,
+            icon = Icons.Default.Gesture,
+            accentColor = Color(0xFFF472B6),
+            onSelect = { onSelectLayout(TouchpadLayout.GESTURE) }
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // ==============================================================
+        // 2. CUSTOM PHOTO BACKGROUND
+        // ==============================================================
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.AddPhotoAlternate,
+                contentDescription = null,
+                tint = Color(0xFF38BDF8),
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "PERSONAL GALLERY PHOTO",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = GrayMuted,
+                letterSpacing = 1.sp
+            )
+        }
+
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = CardDark,
@@ -158,73 +236,28 @@ fun ThemesScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.AddPhotoAlternate,
-                            contentDescription = null,
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "CUSTOM PHOTO PAD",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WhitePrimary,
-                            letterSpacing = 1.sp
-                        )
-                    }
-
-                    if (currentTheme == MousePadTheme.CUSTOM_PHOTO) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFF0369A1),
-                            modifier = Modifier.padding(start = 8.dp)
-                        ) {
-                            Text(
-                                text = "ACTIVE",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Use any wallpaper, picture, or photo from your phone's gallery as your trackpad surface.",
+                    text = "Use any photo from your phone's gallery as your trackpad surface with automatic contrast optimization.",
                     fontSize = 12.sp,
-                    color = GraySecondary
+                    color = GraySecondary,
+                    lineHeight = 16.sp
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Preview Thumbnail if photo is set
                 if (customBitmap != null) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(120.dp)
+                            .height(110.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFF38BDF8), RoundedCornerShape(12.dp))
                     ) {
                         Image(
                             bitmap = customBitmap,
-                            contentDescription = "Custom Pad Preview",
+                            contentDescription = "Custom preview",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.25f))
                         )
                         Surface(
                             shape = RoundedCornerShape(6.dp),
@@ -234,7 +267,7 @@ fun ThemesScreen(
                                 .padding(8.dp)
                         ) {
                             Text(
-                                text = "✓ Custom Photo Loaded",
+                                text = "✓ Custom Photo Active",
                                 fontSize = 11.sp,
                                 color = Color(0xFF38BDF8),
                                 fontWeight = FontWeight.Bold,
@@ -284,38 +317,139 @@ fun ThemesScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Remove", fontSize = 12.sp)
+                            Text("Reset", fontSize = 12.sp)
                         }
                     }
                 }
             }
         }
 
-        // 2. Preset Themes Section
-        Text(
-            text = "PRESET STYLES",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = GrayMuted,
-            letterSpacing = 1.sp
-        )
+        Spacer(modifier = Modifier.height(4.dp))
 
-        val presetThemes = listOf(
+        // ==============================================================
+        // 3. MOUSE PAD THEMES
+        // ==============================================================
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Palette,
+                contentDescription = null,
+                tint = Color(0xFF38BDF8),
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "MOUSE PAD DESIGNS (10 STYLES)",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = GrayMuted,
+                letterSpacing = 1.sp
+            )
+        }
+
+        val allThemes = listOf(
+            MousePadTheme.STEALTH,
             MousePadTheme.CYBER_NEON,
+            MousePadTheme.RETRO_SYNTHWAVE,
+            MousePadTheme.DEEP_SPACE,
             MousePadTheme.FROSTED_GLASS,
             MousePadTheme.CARBON_FIBER,
             MousePadTheme.SUNSET_AURA,
             MousePadTheme.EMERALD_MATRIX,
-            MousePadTheme.STEALTH
+            MousePadTheme.NORDIC_MINIMALIST,
+            MousePadTheme.TITANIUM_METAL
         )
 
-        presetThemes.forEach { theme ->
+        allThemes.forEach { theme ->
             val isSelected = currentTheme == theme
             ThemeCardItem(
                 theme = theme,
                 isSelected = isSelected,
                 onSelect = { onSelectTheme(theme) }
             )
+        }
+    }
+}
+
+@Composable
+private fun LayoutSelectorCard(
+    title: String,
+    subtitle: String,
+    isSelected: Boolean,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    accentColor: Color,
+    onSelect: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = if (isSelected) Color(0xFF131A26) else CardDark,
+        border = BorderStroke(
+            if (isSelected) 1.8.dp else 1.dp,
+            if (isSelected) accentColor else BorderDark
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onSelect() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSelected) accentColor.copy(alpha = 0.2f) else Color(0xFF1E222D)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (isSelected) accentColor else GraySecondary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSelected) accentColor else WhitePrimary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 11.5.sp,
+                    color = GraySecondary,
+                    lineHeight = 15.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            if (isSelected) {
+                Surface(
+                    shape = CircleShape,
+                    color = accentColor,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Selected",
+                            tint = Color.Black,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -332,6 +466,16 @@ private fun ThemeCardItem(
                 Color(0xFF06B6D4),
                 Color(0xFF06B6D4),
                 Brush.linearGradient(listOf(Color(0xFF070B14), Color(0xFF082F49)))
+            )
+            MousePadTheme.RETRO_SYNTHWAVE -> Triple(
+                Color(0xFFD946EF),
+                Color(0xFFF472B6),
+                Brush.linearGradient(listOf(Color(0xFF16062A), Color(0xFF2C0A47), Color(0xFF0D031A)))
+            )
+            MousePadTheme.DEEP_SPACE -> Triple(
+                Color(0xFF6366F1),
+                Color(0xFFA5B4FC),
+                Brush.radialGradient(listOf(Color(0xFF1E1B4B), Color(0xFF060914)))
             )
             MousePadTheme.FROSTED_GLASS -> Triple(
                 Color(0xFF94A3B8),
@@ -352,6 +496,16 @@ private fun ThemeCardItem(
                 Color(0xFF10B981),
                 Color(0xFF34D399),
                 Brush.linearGradient(listOf(Color(0xFF021B10), Color(0xFF064E3B)))
+            )
+            MousePadTheme.NORDIC_MINIMALIST -> Triple(
+                Color(0xFF94A3B8),
+                Color(0xFFE2E8F0),
+                Brush.linearGradient(listOf(Color(0xFF1E2229), Color(0xFF334155)))
+            )
+            MousePadTheme.TITANIUM_METAL -> Triple(
+                Color(0xFF64748B),
+                Color(0xFF94A3B8),
+                Brush.linearGradient(listOf(Color(0xFF252A34), Color(0xFF191D24), Color(0xFF2C333F)))
             )
             else -> Triple(
                 BorderDark,
@@ -388,7 +542,7 @@ private fun ThemeCardItem(
                     .border(1.dp, cardBorderColor.copy(alpha = 0.5f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                if (theme == MousePadTheme.CYBER_NEON || theme == MousePadTheme.EMERALD_MATRIX) {
+                if (theme == MousePadTheme.CYBER_NEON || theme == MousePadTheme.EMERALD_MATRIX || theme == MousePadTheme.RETRO_SYNTHWAVE) {
                     Text("+", color = accentColor, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 }
             }

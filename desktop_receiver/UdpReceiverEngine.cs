@@ -213,6 +213,32 @@ namespace AirGlideDesktop
             Dispatch(cmd, payload);
         }
 
+        public void ProcessExternalCommand(string msg, string source = "Bluetooth")
+        {
+            msg = msg.Trim();
+            if (string.IsNullOrEmpty(msg)) return;
+
+            if (!TryParse(msg, out string cmd, out string payload, out string devId, out string name)) return;
+            TotalPackets++;
+
+            if (!Accept(devId, source, name)) return;
+
+            if (cmd == "P")
+            {
+                OnLog?.Invoke($"Bluetooth ping from {name} acknowledged");
+                return;
+            }
+
+            if (cmd == "X")
+            {
+                ReleaseController();
+                OnLog?.Invoke($"Bluetooth client disconnected ({name})");
+                return;
+            }
+
+            Dispatch(cmd, payload);
+        }
+
         private static bool TryParse(string msg, out string cmd, out string payload, out string devId, out string name)
         {
             cmd = "";

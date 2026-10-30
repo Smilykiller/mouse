@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -118,6 +119,30 @@ fun TrackpadSurface(
                 Color(0xFF10B981).copy(alpha = 0.35f),
                 Color(0xFF10B981),
                 Color(0xFF34D399)
+            )
+            MousePadTheme.RETRO_SYNTHWAVE -> QuadColors(
+                Color(0xFF150A26),
+                Color(0xFFE879F9).copy(alpha = 0.35f),
+                Color(0xFFD946EF),
+                Color(0xFF38BDF8)
+            )
+            MousePadTheme.NORDIC_MINIMALIST -> QuadColors(
+                Color(0xFF1E2229),
+                Color(0xFFCBD5E1).copy(alpha = 0.20f),
+                Color(0xFF475569),
+                Color(0xFFF1F5F9)
+            )
+            MousePadTheme.TITANIUM_METAL -> QuadColors(
+                Color(0xFF1C2028),
+                Color(0xFF94A3B8).copy(alpha = 0.30f),
+                Color(0xFF64748B),
+                Color(0xFF38BDF8)
+            )
+            MousePadTheme.DEEP_SPACE -> QuadColors(
+                Color(0xFF070B19),
+                Color(0xFF818CF8).copy(alpha = 0.30f),
+                Color(0xFF6366F1),
+                Color(0xFFA5B4FC)
             )
             MousePadTheme.CUSTOM_PHOTO -> QuadColors(
                 Color(0xFF12131A),
@@ -247,6 +272,37 @@ fun TrackpadSurface(
                         )
                     )
             )
+        } else if (theme == MousePadTheme.RETRO_SYNTHWAVE) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFF16062A), Color(0xFF2C0A47), Color(0xFF0D031A))
+                        )
+                    )
+            )
+        } else if (theme == MousePadTheme.TITANIUM_METAL) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF252A34), Color(0xFF191D24), Color(0xFF2C333F))
+                        )
+                    )
+            )
+        } else if (theme == MousePadTheme.DEEP_SPACE) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(Color(0xFF1E1B4B), Color(0xFF060914)),
+                            radius = 900f
+                        )
+                    )
+            )
         }
 
         // 2. High-precision minimalist grid & glowing touch indicator canvas
@@ -347,6 +403,40 @@ fun TrackpadSurface(
                         letterSpacing = 0.5.sp
                     )
                 }
+            }
+        }
+
+        // 5. Floating Quick Drag-Lock Pill (Bottom Right Corner)
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = if (dragLockActive) Color(0xFFD97706) else Color(0xB31E222D),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                if (dragLockActive) Color(0xFFFBBF24) else Color(0x66475569)
+            ),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(14.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { onToggleDragLock() }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Icon(
+                    imageVector = if (dragLockActive) Icons.Default.Lock else Icons.Default.TouchApp,
+                    contentDescription = "Hold Drag",
+                    tint = if (dragLockActive) Color.White else Color(0xFFCBD5E1),
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+                Text(
+                    text = if (dragLockActive) "DRAG LOCKED" else "HOLD DRAG",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (dragLockActive) Color.White else Color(0xFFCBD5E1)
+                )
             }
         }
     }

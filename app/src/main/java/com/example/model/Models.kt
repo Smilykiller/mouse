@@ -24,6 +24,10 @@ enum class MousePadTheme(
     CARBON_FIBER("carbon_fiber", "Carbon Fiber", "Woven composite sports trackpad"),
     SUNSET_AURA("sunset_aura", "Sunset Aura", "Cosmic violet & warm magenta glow"),
     EMERALD_MATRIX("emerald_matrix", "Emerald Matrix", "Glowing matrix terminal theme"),
+    RETRO_SYNTHWAVE("retro_synthwave", "Retro Synthwave", "80s neon grid with magenta horizon"),
+    NORDIC_MINIMALIST("nordic_minimalist", "Nordic Slate", "Scandi matte birch & calm slate"),
+    TITANIUM_METAL("titanium_metal", "Brushed Titanium", "Industrial alloy with precision crosshairs"),
+    DEEP_SPACE("deep_space", "Cosmic Nebula", "Deep space galaxy dust & stellar glow"),
     CUSTOM_PHOTO("custom_photo", "Custom Photo", "Your personalized gallery picture")
 }
 
@@ -96,6 +100,12 @@ data class DeviceHistoryItem(
     val ipAddress: String,
     val port: Int = 5055,
     val lastUsedMs: Long = System.currentTimeMillis()
+)
+
+data class BluetoothDeviceInfo(
+    val name: String,
+    val address: String,
+    val isPaired: Boolean = true
 )
 
 data class AppSettings(

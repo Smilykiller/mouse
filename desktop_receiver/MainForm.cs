@@ -18,6 +18,7 @@ namespace AirGlideDesktop
     public class MainForm : Form
     {
         private readonly UdpReceiverEngine _engine;
+        private readonly BluetoothReceiverEngine _btEngine;
         private readonly bool _startMinimized;
         private NotifyIcon _trayIcon = null!;
         private ContextMenuStrip _trayMenu = null!;
@@ -76,6 +77,7 @@ namespace AirGlideDesktop
         {
             _startMinimized = startMinimized;
             _engine = new UdpReceiverEngine(5055);
+            _btEngine = new BluetoothReceiverEngine();
 
             LoadAppIcon();
             InitializeComponent();
@@ -87,9 +89,20 @@ namespace AirGlideDesktop
                 if (cmd != "MOVE") AppendLogSafe($"[{cmd}] {detail}");
             };
 
+            _btEngine.OnLog += msg => AppendLogSafe($"[BT] {msg}");
+            _btEngine.OnCommandReceived += (cmd, client) =>
+            {
+                _engine.ProcessExternalCommand(cmd, $"Bluetooth: {client}");
+            };
+            _btEngine.OnConnectionStateChanged += connected =>
+            {
+                UpdateUiFromState();
+            };
+
             this.Load += (s, e) =>
             {
                 _engine.Start();
+                _ = _btEngine.StartAsync();
                 UpdateUiFromState();
                 if (_startMinimized)
                 {
@@ -1259,7 +1272,15 @@ namespace AirGlideDesktop
 
                 _lblIpDisplay.Text = $"{_engine.LocalIp}  (Port {_engine.Port})";
 
-                if (_engine.ActiveDeviceId != null && _engine.Devices.TryGetValue(_engine.ActiveDeviceId, out var dev))
+                if (_btEngine != null && _btEngine.IsConnected)
+                {
+                    _lblHeroTitle.Text = $"🔵 Bluetooth Connected: {_btEngine.ConnectedDeviceName}";
+                    _lblHeroTitle.ForeColor = AccentCyan;
+                    _lblHeroDesc.Text = "Connected directly via Bluetooth RFCOMM SPP. Controlling mouse & keyboard without Wi-Fi!";
+                    _btnDisconnectPhone.Visible = true;
+                    _lblStatsDevice.Text = $"{_btEngine.ConnectedDeviceName} (Bluetooth)";
+                }
+                else if (_engine.ActiveDeviceId != null && _engine.Devices.TryGetValue(_engine.ActiveDeviceId, out var dev))
                 {
                     _lblHeroTitle.Text = $"🟢 Phone Connected: {dev.Name}";
                     _lblHeroTitle.ForeColor = AccentGreen;
@@ -1285,7 +1306,7 @@ namespace AirGlideDesktop
                     _lblStatsDevice.Text = "None (Waiting)";
                 }
 
-                _lblStatsStatus.Text = $"Listening on UDP {_engine.Port}";
+                _lblStatsStatus.Text = $"Listening on UDP {_engine.Port}" + (_btEngine?.IsRunning == true ? " & Bluetooth SPP" : "");
                 _lblStatsStatus.ForeColor = AccentGreen;
             }
             else
@@ -1334,6 +1355,7 @@ namespace AirGlideDesktop
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             _refreshTimer?.Stop();
+            _btEngine?.Stop();
             _engine?.Stop();
             if (_trayIcon != null)
             {

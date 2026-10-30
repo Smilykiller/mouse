@@ -118,8 +118,10 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
         modifier = Modifier.fillMaxSize(),
         containerColor = TrueBlack,
         bottomBar = {
-            // Modern bottom tab navigation (auto-hides when virtual keyboard is active to maximize mousepad space)
-            if (!uiState.isKeyboardOpen && uiState.currentScreen != AppScreen.DEVICE_CONNECTION) {
+            // Modern bottom tab navigation (auto-hides in Mousepad mode to prevent palm mis-touches, or when keyboard is active)
+            if (!uiState.isKeyboardOpen && 
+                uiState.activeTab != AppNavTab.TRACKPAD && 
+                uiState.currentScreen != AppScreen.DEVICE_CONNECTION) {
                 NavigationBar(
                     containerColor = Color(0xFF10131B),
                     tonalElevation = 8.dp
@@ -273,7 +275,8 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                                 onToggleKeyboard = { viewModel.toggleKeyboard() },
                                 onDisconnect = { viewModel.disconnectFromDevice() },
                                 onUpdateQuickKeys = { keys -> viewModel.updateQuickKeys(keys) },
-                                onResetQuickKeys = { viewModel.resetQuickKeys() }
+                                onResetQuickKeys = { viewModel.resetQuickKeys() },
+                                onOpenFullHelp = { viewModel.selectTab(AppNavTab.HELP) }
                             )
                         } else {
                             HostReceiverScreen(
@@ -287,8 +290,10 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                         ThemesScreen(
                             currentTheme = uiState.selectedTheme,
                             customImagePath = uiState.customImagePath,
+                            currentLayout = uiState.layout,
                             onSelectTheme = { theme -> viewModel.selectTheme(theme) },
-                            onSetCustomImage = { path -> viewModel.setCustomTrackpadImage(path) }
+                            onSetCustomImage = { path -> viewModel.setCustomTrackpadImage(path) },
+                            onSelectLayout = { layout -> viewModel.setLayout(layout) }
                         )
                     }
 
@@ -311,7 +316,12 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                             onConnectToDiscoveredHost = { host -> viewModel.connectToDiscoveredHost(host) },
                             onDisconnect = { viewModel.disconnectFromDevice() },
                             onLayoutChange = { l -> viewModel.setLayout(l) },
-                            onRoleChange = { r -> viewModel.setRole(r) }
+                            onRoleChange = { r -> viewModel.setRole(r) },
+                            onSelectConnectionMode = { mode -> viewModel.setConnectionMode(mode) },
+                            onScanBluetooth = { viewModel.scanBluetoothDevices() },
+                            onConnectBluetooth = { device -> viewModel.connectBluetooth(device) },
+                            onDisconnectBluetooth = { viewModel.disconnectBluetooth() },
+                            onOpenMousepad = { viewModel.selectTab(AppNavTab.TRACKPAD) }
                         )
                     }
                 }

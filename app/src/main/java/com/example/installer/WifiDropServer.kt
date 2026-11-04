@@ -234,6 +234,10 @@ class WifiDropServer(
                 <div class="step-num">3</div>
                 <div class="step-text">Your phone links automatically via Wi-Fi or Bluetooth!</div>
             </div>
+            <div class="step">
+                <div class="step-num">4</div>
+                <div class="step-text"><b>Easy 1-Click Uninstall:</b> Remove anytime directly from Windows Settings &rarr; Installed Apps, app Settings &rarr; Uninstall, or via <i>Uninstall_AirGlide_Windows.bat</i>.</div>
+            </div>
         </div>
 
         <div class="footer">AirGlide • Ultra-low latency wireless trackpad & keyboard</div>

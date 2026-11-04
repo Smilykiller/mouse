@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Lock
@@ -146,6 +147,14 @@ fun HelpScreen(
             title = "7. Wi-Fi Connection & Troubleshooting",
             subtitle = "Same Wi-Fi network • Port 5055",
             description = "Make sure your phone and laptop are connected to the same Wi-Fi router or phone mobile hotspot. AirGlide discovers your laptop automatically. If Wi-Fi isolation is enabled on your router, check the laptop IP in the laptop app and connect directly in Settings."
+        )
+
+        HelpCard(
+            icon = Icons.Default.DeleteOutline,
+            iconTint = Color(0xFFF87171),
+            title = "8. Uninstalling from Laptop",
+            subtitle = "Clean 1-Click Removal • Zero Leftovers",
+            description = "To remove AirGlide from your laptop at any time: Open Windows Settings → Apps → Installed Apps, locate 'AirGlide Remote' and click 'Uninstall'. Alternatively, inside the laptop app go to Settings → 'Uninstall AirGlide from this PC', or run 'Uninstall_AirGlide_Windows.bat'."
         )
     }
 }

@@ -17,6 +17,15 @@ namespace AirGlideDesktop
         [STAThread]
         static void Main(string[] args)
         {
+            // 0. Handle command-line uninstallation immediately
+            if (args != null && args.Length > 0 && Array.Exists(args, a => a.Equals("--uninstall", StringComparison.OrdinalIgnoreCase) || a.Equals("-uninstall", StringComparison.OrdinalIgnoreCase) || a.Equals("/uninstall", StringComparison.OrdinalIgnoreCase)))
+            {
+                bool silent = Array.Exists(args, a => a.Equals("--silent", StringComparison.OrdinalIgnoreCase) || a.Equals("/silent", StringComparison.OrdinalIgnoreCase));
+                bool success = WindowsShortcutHelper.PerformUninstall(silent);
+                Environment.Exit(success ? 0 : 1);
+                return;
+            }
+
             // 1. Single-Instance Check: Prevent opening multiple duplicate windows/tabs
             bool isFirstInstance = false;
             Mutex? mutex = null;
@@ -59,6 +68,11 @@ namespace AirGlideDesktop
                 if (!File.Exists(WindowsShortcutHelper.StartMenuShortcutPath))
                 {
                     WindowsShortcutHelper.InstallAndCreateShortcuts();
+                }
+                else
+                {
+                    // Ensure Windows Settings -> Installed Apps entry is always up to date
+                    WindowsShortcutHelper.RegisterWindowsUninstaller();
                 }
             }
             catch { }

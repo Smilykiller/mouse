@@ -337,6 +337,15 @@ fun InstallOnLaptopDialog(
                     }
                 }
 
+                // Uninstall / Removal assurance note
+                Text(
+                    text = "💡 Easy 1-Click Uninstall anytime: AirGlide registers with Windows 'Installed Apps' so you can remove it in 1 click from Windows Settings, app Settings, or via Uninstall_AirGlide_Windows.bat.",
+                    fontSize = 11.sp,
+                    color = Color(0xFF94A3B8),
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+
                 state.wifiDropStatus?.let { status ->
                     Text(
                         text = status,

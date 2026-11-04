@@ -42,3 +42,14 @@ Tip: if auto-discovery fails, type the IP shown in the receiver window into **Co
 * Traffic is unencrypted UDP on your LAN – use trusted networks.
 * Windows cannot let a normal program control elevated windows (Task Manager, UAC prompts) unless the receiver runs as Administrator.
 * Python tests: `cd desktop_receiver && python -m unittest discover -s tests -v`.
+
+## 4. Uninstalling from Laptop (Clean 1-Click Removal)
+
+AirGlide supports full, clean uninstallation with zero leftover files or background services using any of the following methods:
+
+1. **Windows Settings (Recommended)**: Open **Windows Settings ▸ Apps ▸ Installed Apps** (or Control Panel ▸ Programs and Features), locate **AirGlide Remote**, and click **Uninstall**.
+2. **Directly inside AirGlide**: Open the AirGlide Remote receiver window on your laptop, switch to the **Settings** tab, and click **🗑️ Uninstall AirGlide from this PC**.
+3. **From the System Tray**: Right-click the AirGlide icon in the Windows taskbar system tray and select **🗑️ Uninstall AirGlide...**.
+4. **1-Click Batch Script**: Double-click `Uninstall_AirGlide_Windows.bat` in the root folder or `%LOCALAPPDATA%\AirGlide\Uninstall.bat`.
+5. **Command Line**: Run `AirGlide.exe --uninstall` (add `--silent` for quiet uninstallation).
+

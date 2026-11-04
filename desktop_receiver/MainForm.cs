@@ -695,7 +695,7 @@ namespace AirGlideDesktop
                 Dock = DockStyle.Top,
                 AutoSize = true,
                 ColumnCount = 1,
-                RowCount = 4,
+                RowCount = 5,
                 BackColor = BgColor
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
@@ -704,6 +704,7 @@ namespace AirGlideDesktop
             layout.Controls.Add(BuildStartupCard());
             layout.Controls.Add(BuildFirewallCard());
             layout.Controls.Add(BuildPowerModeCard());
+            layout.Controls.Add(BuildUninstallCard());
 
             _pageSettings.Controls.Add(layout);
             return _pageSettings;
@@ -958,6 +959,101 @@ namespace AirGlideDesktop
             return card;
         }
 
+        private Control BuildUninstallCard()
+        {
+            Panel card = CreateCardContainer();
+            card.Margin = new Padding(0, 0, 0, 14);
+            card.Padding = new Padding(20, 14, 20, 16);
+
+            FlowLayoutPanel flow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                BackColor = CardBg
+            };
+
+            Label lblTitle = new Label
+            {
+                Text = "UNINSTALL & REMOVE AIRGLIDE FROM THIS LAPTOP",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                ForeColor = AccentRed,
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 8)
+            };
+            flow.Controls.Add(lblTitle);
+
+            Button btnUninstall = new Button
+            {
+                Text = "🗑️ Uninstall AirGlide from this PC",
+                Size = new Size(320, 38),
+                BackColor = Color.FromArgb(50, 18, 18),
+                ForeColor = Color.FromArgb(248, 113, 113),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Margin = new Padding(0, 0, 0, 8)
+            };
+            btnUninstall.FlatAppearance.BorderColor = Color.FromArgb(140, 35, 35);
+            btnUninstall.Click += (s, e) =>
+            {
+                TriggerUninstallFlow();
+            };
+            flow.Controls.Add(btnUninstall);
+
+            Label lblDesc = new Label
+            {
+                Text = "Completely removes AirGlide from your laptop: closes the receiver, removes Start Menu & Desktop shortcuts, clears Windows startup, and deletes application files from AppData.",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Regular),
+                ForeColor = TextSecondary,
+                AutoSize = true,
+                Margin = new Padding(0)
+            };
+            flow.Controls.Add(lblDesc);
+
+            card.Controls.Add(flow);
+            return card;
+        }
+
+        public void TriggerUninstallFlow()
+        {
+            var confirm = MessageBox.Show(this,
+                "Are you sure you want to completely uninstall AirGlide Remote from this laptop?\n\n" +
+                "This will:\n" +
+                " • Stop and close the laptop receiver\n" +
+                " • Remove Desktop and Start Menu shortcuts\n" +
+                " • Remove automatic Windows startup\n" +
+                " • Remove AirGlide from Windows 'Installed Apps' list\n" +
+                " • Delete application files from AppData",
+                "Uninstall AirGlide Remote",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (confirm == DialogResult.Yes)
+            {
+                _refreshTimer?.Stop();
+                _engine?.Stop();
+                _btEngine?.Stop();
+                if (_trayIcon != null)
+                {
+                    _trayIcon.Visible = false;
+                    _trayIcon.Dispose();
+                }
+
+                WindowsShortcutHelper.PerformUninstall(silent: true);
+                MessageBox.Show(
+                    "AirGlide Remote has been completely uninstalled from your PC.",
+                    "AirGlide Remote Uninstalled",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                Application.Exit();
+                Environment.Exit(0);
+            }
+        }
+
+
         // ======================================================================
         // TAB 3: 📊 ACTIVITY & LOGS (Diagnostics & Technical Stream)
         // ======================================================================
@@ -1206,6 +1302,13 @@ namespace AirGlideDesktop
                 _ = _btEngine.StartAsync();
                 AppendLogSafe("Receiver started from tray menu.");
                 UpdateUiFromState();
+            });
+            _trayMenu.Items.Add("-");
+            _trayMenu.Items.Add("🗑️ Uninstall AirGlide...", null, (s, e) =>
+            {
+                RestoreWindow();
+                SelectTab(AppTab.Settings);
+                TriggerUninstallFlow();
             });
             _trayMenu.Items.Add("-");
             _trayMenu.Items.Add("Exit AirGlide (Quit)", null, (s, e) =>

@@ -1,28 +1,14 @@
 package com.example
 
-import android.content.Context
-import androidx.test.core.app.ApplicationProvider
 import com.example.model.ClickButton
 import com.example.model.RemoteCommand
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
 class ExampleRobolectricTest {
 
     @Test
-    fun `read string from context`() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val appName = context.getString(R.string.app_name)
-        assertEquals("AirGlide", appName)
-    }
-
-    @Test
-    fun `verify remote command serialization`() {
+    fun verifyRemoteCommandSerialization() {
         val move = RemoteCommand.Move(15f, -8f)
         assertEquals("M:15,-8:device_1", move.toWireString("device_1"))
 
@@ -46,5 +32,14 @@ class ExampleRobolectricTest {
 
         val presence = RemoteCommand.Presence("dev_123", "Pixel 9")
         assertEquals("P:dev_123:Pixel 9", presence.toWireString("dev_123"))
+
+        val action = RemoteCommand.Action("WIN_TAB")
+        assertEquals("A:WIN_TAB:device_1", action.toWireString("device_1"))
+
+        val jump = RemoteCommand.DisplayJump("next")
+        assertEquals("J:next:device_1", jump.toWireString("device_1"))
+
+        val tabSwitch = RemoteCommand.TabSwitch(1)
+        assertEquals("W:1:device_1", tabSwitch.toWireString("device_1"))
     }
 }

@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,6 +72,7 @@ class BluetoothClient(
     private var connectJob: Job? = null
     private var sendJob: Job? = null
     private var receiveJob: Job? = null
+    private var heartbeatJob: Job? = null
 
     init {
         startSendLoop()
@@ -135,8 +137,9 @@ class BluetoothClient(
                 _connectionStatus.value = "Connected to $targetDeviceName"
                 _lastError.value = null
 
-                // Send immediate presence handshake
+                // Send immediate presence handshake and maintain periodic telemetry heartbeat
                 send("P:$deviceId:${deviceName.replace(":", "-")}")
+                startHeartbeat()
 
                 startReceiveLoop(connectedSocket)
             } catch (e: Exception) {
@@ -280,10 +283,23 @@ class BluetoothClient(
         }
     }
 
+    private fun startHeartbeat() {
+        heartbeatJob?.cancel()
+        heartbeatJob = scope.launch(Dispatchers.IO) {
+            while (isActive && _isConnected.value) {
+                delay(2500)
+                if (_isConnected.value) {
+                    send("P:$deviceId:${deviceName.replace(":", "-")}")
+                }
+            }
+        }
+    }
+
     /**
      * Close the connection and reset status.
      */
     fun disconnect() {
+        heartbeatJob?.cancel()
         try {
             send("X:bye:$deviceId")
         } catch (_: Exception) {}

@@ -52,7 +52,7 @@ Write-Host "Laptop IP: §localIp   (type this in the phone app if it is not foun
 §activeDev = §null
 §lastSeen = [DateTime]::MinValue
 §lastBeacon = [DateTime]::MinValue
-§valid = 'M','C','D','U','S','K','T','P'
+§valid = 'M','C','D','U','S','K','T','P','A','J','B','W'
 
 while (§true) {
     try {
@@ -118,6 +118,32 @@ while (§true) {
             §txt = §txt -replace '([+^%~(){}\[\]])', '{§1}'
             [System.Windows.Forms.SendKeys]::SendWait(§txt)
         }
+        elseif (§cmd -eq 'A') {
+            §act = §parts[1].ToUpper()
+            if (§act -eq 'WIN_D' -or §act -eq 'DESKTOP') { (New-Object -ComObject Shell.Application).ToggleDesktop() }
+            elseif (§act -eq 'ALT_TAB') { [System.Windows.Forms.SendKeys]::SendWait('%{TAB}') }
+            elseif (§act -eq 'CLOSE_APP') { [System.Windows.Forms.SendKeys]::SendWait('%{F4}') }
+            elseif (§act -eq 'TASKMGR') { Start-Process taskmgr.exe }
+            elseif (§act -eq 'LOCK') { rundll32.exe user32.dll,LockWorkStation }
+            elseif (§act -eq 'SLIDE_NEXT') { [System.Windows.Forms.SendKeys]::SendWait('{PGDN}') }
+            elseif (§act -eq 'SLIDE_PREV') { [System.Windows.Forms.SendKeys]::SendWait('{PGUP}') }
+            elseif (§act -eq 'SLIDE_START') { [System.Windows.Forms.SendKeys]::SendWait('{F5}') }
+            elseif (§act -eq 'SLIDE_END') { [System.Windows.Forms.SendKeys]::SendWait('{ESC}') }
+        }
+        elseif (§cmd -eq 'J') {
+            [System.Windows.Forms.SendKeys]::SendWait('+#{RIGHT}')
+        }
+        elseif (§cmd -eq 'W') {
+            if ([int]§parts[1] -gt 0) { [System.Windows.Forms.SendKeys]::SendWait('^{TAB}') }
+            else { [System.Windows.Forms.SendKeys]::SendWait('^+{TAB}') }
+        }
+        elseif (§cmd -eq 'B') {
+            try {
+                §b64 = §parts[1..(§parts.Count - 2)] -join ':'
+                §str = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(§b64))
+                [System.Windows.Forms.Clipboard]::SetText(§str)
+            } catch { }
+        }
     } catch { }
 }
 """.trimIndent().replace('§', '$')
@@ -129,7 +155,7 @@ import platform, socket, sys, threading, time
 
 IS_WIN = platform.system() == "Windows"
 PORT, DISCOVERY_PORT = 5055, 5056
-VALID = set("MCDUSKTP")
+VALID = set("MCDUSKTPXAJBW")
 
 if IS_WIN:
     import ctypes
@@ -204,6 +230,49 @@ def act(cmd, payload):
                 if ch == "\n": send(key(0x0D), key(0x0D, 0, 2)); continue
                 for unit in memoryview(ch.encode("utf-16-le")).cast("H"):
                     send(key(0, unit, 0x0004), key(0, unit, 0x0006))
+        elif cmd == "A":
+            a = payload.upper()
+            if a in ("WIN_D", "DESKTOP"):
+                user32.keybd_event(0x5B, 0, 0, 0); user32.keybd_event(0x44, 0, 0, 0)
+                user32.keybd_event(0x44, 0, 2, 0); user32.keybd_event(0x5B, 0, 2, 0)
+            elif a == "ALT_TAB":
+                user32.keybd_event(0x12, 0, 0, 0); user32.keybd_event(0x09, 0, 0, 0)
+                user32.keybd_event(0x09, 0, 2, 0); user32.keybd_event(0x12, 0, 2, 0)
+            elif a == "LOCK":
+                try: user32.LockWorkStation()
+                except Exception: pass
+            elif a == "CLOSE_APP":
+                user32.keybd_event(0x12, 0, 0, 0); user32.keybd_event(0x73, 0, 0, 0)
+                user32.keybd_event(0x73, 0, 2, 0); user32.keybd_event(0x12, 0, 2, 0)
+        elif cmd == "J":
+            user32.keybd_event(0x5B, 0, 0, 0); user32.keybd_event(0x10, 0, 0, 0); user32.keybd_event(0x27, 0, 1, 0)
+            user32.keybd_event(0x27, 0, 3, 0); user32.keybd_event(0x10, 0, 2, 0); user32.keybd_event(0x5B, 0, 2, 0)
+        elif cmd == "W":
+            d = int(payload)
+            if d > 0:
+                user32.keybd_event(0x11, 0, 0, 0); user32.keybd_event(0x09, 0, 0, 0)
+                user32.keybd_event(0x09, 0, 2, 0); user32.keybd_event(0x11, 0, 2, 0)
+            else:
+                user32.keybd_event(0x11, 0, 0, 0); user32.keybd_event(0x10, 0, 0, 0); user32.keybd_event(0x09, 0, 0, 0)
+                user32.keybd_event(0x09, 0, 2, 0); user32.keybd_event(0x10, 0, 2, 0); user32.keybd_event(0x11, 0, 2, 0)
+        elif cmd == "B":
+            import base64
+            try:
+                raw = base64.b64decode(payload).decode("utf-8", "ignore")
+                k = ctypes.windll.kernel32
+                if user32.OpenClipboard(0):
+                    try:
+                        user32.EmptyClipboard()
+                        d = raw.encode("utf-16-le") + b"\x00\x00"
+                        hm = k.GlobalAlloc(0x0002, len(d))
+                        if hm:
+                            pm = k.GlobalLock(hm)
+                            if pm:
+                                ctypes.memmove(pm, d, len(d))
+                                k.GlobalUnlock(hm)
+                                user32.SetClipboardData(13, hm)
+                    finally: user32.CloseClipboard()
+            except Exception: pass
     else:
         if cmd == "M":
             dx, dy = payload.split(","); pyautogui.moveRel(float(dx), float(dy))

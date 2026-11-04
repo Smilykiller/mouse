@@ -34,7 +34,7 @@ import time
 
 DEFAULT_PORT = 5055
 DISCOVERY_PORT = 5056
-VALID_COMMANDS = frozenset("MCDUSKTPX")
+VALID_COMMANDS = frozenset("MCDUSKTPXAJBW")
 CONTROLLER_TIMEOUT = 10.0      # seconds of silence before another phone may take over
 IS_WINDOWS = platform.system() == "Windows"
 
@@ -186,6 +186,10 @@ class DryRunInput:
     def scroll(self, notches): self._rec("scroll", notches)
     def key(self, name): self._rec("key", name)
     def text(self, text): self._rec("text", text)
+    def action(self, act): self._rec("action", act)
+    def display_jump(self, target="next"): self._rec("display_jump", target)
+    def clipboard(self, b64): self._rec("clipboard", b64)
+    def tab_switch(self, direction): self._rec("tab_switch", direction)
 
 
 # ---- Windows SendInput structures (defined everywhere so they can be unit-tested) ----
@@ -328,6 +332,94 @@ class WindowsInput:
                         except Exception:
                             pass
 
+    def action(self, act):
+        act = (act or "").upper().strip()
+        u = self.user32
+        if act == "WIN_TAB":
+            u.keybd_event(0x5B, 0, 0, 0); u.keybd_event(0x09, 0, 0, 0)
+            u.keybd_event(0x09, 0, 2, 0); u.keybd_event(0x5B, 0, 2, 0)
+        elif act in ("WIN_D", "DESKTOP"):
+            u.keybd_event(0x5B, 0, 0, 0); u.keybd_event(0x44, 0, 0, 0)
+            u.keybd_event(0x44, 0, 2, 0); u.keybd_event(0x5B, 0, 2, 0)
+        elif act == "ALT_TAB":
+            u.keybd_event(0x12, 0, 0, 0); u.keybd_event(0x09, 0, 0, 0)
+            u.keybd_event(0x09, 0, 2, 0); u.keybd_event(0x12, 0, 2, 0)
+        elif act == "WIN_A":
+            u.keybd_event(0x5B, 0, 0, 0); u.keybd_event(0x41, 0, 0, 0)
+            u.keybd_event(0x41, 0, 2, 0); u.keybd_event(0x5B, 0, 2, 0)
+        elif act == "LOCK":
+            try: u.LockWorkStation()
+            except Exception: pass
+        elif act == "SCREENSHOT":
+            u.keybd_event(0x5B, 0, 0, 0); u.keybd_event(0x10, 0, 0, 0); u.keybd_event(0x53, 0, 0, 0)
+            u.keybd_event(0x53, 0, 2, 0); u.keybd_event(0x10, 0, 2, 0); u.keybd_event(0x5B, 0, 2, 0)
+        elif act == "TASKMGR":
+            u.keybd_event(0x11, 0, 0, 0); u.keybd_event(0x10, 0, 0, 0); u.keybd_event(0x1B, 0, 0, 0)
+            u.keybd_event(0x1B, 0, 2, 0); u.keybd_event(0x10, 0, 2, 0); u.keybd_event(0x11, 0, 2, 0)
+        elif act == "MEDIA_PLAY_PAUSE":
+            u.keybd_event(0xB3, 0, 0, 0); u.keybd_event(0xB3, 0, 2, 0)
+        elif act == "MEDIA_NEXT":
+            u.keybd_event(0xB0, 0, 0, 0); u.keybd_event(0xB0, 0, 2, 0)
+        elif act == "MEDIA_PREV":
+            u.keybd_event(0xB1, 0, 0, 0); u.keybd_event(0xB1, 0, 2, 0)
+        elif act == "VOLUME_MUTE":
+            u.keybd_event(0xAD, 0, 0, 0); u.keybd_event(0xAD, 0, 2, 0)
+        elif act == "VOLUME_UP":
+            u.keybd_event(0xAF, 0, 0, 0); u.keybd_event(0xAF, 0, 2, 0)
+        elif act == "VOLUME_DOWN":
+            u.keybd_event(0xAE, 0, 0, 0); u.keybd_event(0xAE, 0, 2, 0)
+        elif act == "CLOSE_APP":
+            u.keybd_event(0x12, 0, 0, 0); u.keybd_event(0x73, 0, 0, 0)
+            u.keybd_event(0x73, 0, 2, 0); u.keybd_event(0x12, 0, 2, 0)
+        elif act == "SLIDE_NEXT":
+            u.keybd_event(0x22, 0, 0, 0); u.keybd_event(0x22, 0, 2, 0)
+        elif act == "SLIDE_PREV":
+            u.keybd_event(0x21, 0, 0, 0); u.keybd_event(0x21, 0, 2, 0)
+        elif act == "SLIDE_START":
+            u.keybd_event(0x74, 0, 0, 0); u.keybd_event(0x74, 0, 2, 0)
+        elif act == "SLIDE_END":
+            u.keybd_event(0x1B, 0, 0, 0); u.keybd_event(0x1B, 0, 2, 0)
+        elif act == "ZOOM_IN":
+            u.keybd_event(0x11, 0, 0, 0); self.scroll(1); u.keybd_event(0x11, 0, 2, 0)
+        elif act == "ZOOM_OUT":
+            u.keybd_event(0x11, 0, 0, 0); self.scroll(-1); u.keybd_event(0x11, 0, 2, 0)
+
+    def display_jump(self, target="next"):
+        u = self.user32
+        u.keybd_event(0x5B, 0, 0, 0); u.keybd_event(0x10, 0, 0, 0); u.keybd_event(0x27, 0, 1, 0)
+        u.keybd_event(0x27, 0, 3, 0); u.keybd_event(0x10, 0, 2, 0); u.keybd_event(0x5B, 0, 2, 0)
+
+    def tab_switch(self, direction):
+        u = self.user32
+        if int(direction) > 0:
+            u.keybd_event(0x11, 0, 0, 0); u.keybd_event(0x09, 0, 0, 0)
+            u.keybd_event(0x09, 0, 2, 0); u.keybd_event(0x11, 0, 2, 0)
+        else:
+            u.keybd_event(0x11, 0, 0, 0); u.keybd_event(0x10, 0, 0, 0); u.keybd_event(0x09, 0, 0, 0)
+            u.keybd_event(0x09, 0, 2, 0); u.keybd_event(0x10, 0, 2, 0); u.keybd_event(0x11, 0, 2, 0)
+
+    def clipboard(self, b64):
+        import base64
+        try:
+            raw = base64.b64decode(b64).decode("utf-8", "ignore")
+            if raw:
+                u, k = self.user32, ctypes.windll.kernel32
+                if u.OpenClipboard(0):
+                    try:
+                        u.EmptyClipboard()
+                        data = raw.encode("utf-16-le") + b"\x00\x00"
+                        h_mem = k.GlobalAlloc(0x0002, len(data))
+                        if h_mem:
+                            p_mem = k.GlobalLock(h_mem)
+                            if p_mem:
+                                ctypes.memmove(p_mem, data, len(data))
+                                k.GlobalUnlock(h_mem)
+                                u.SetClipboardData(13, h_mem)
+                    finally:
+                        u.CloseClipboard()
+        except Exception:
+            pass
+
 
 class PynputInput:
     """macOS / Linux back-end (pip install pynput)."""
@@ -361,6 +453,10 @@ class PynputInput:
             self.k.release(k)
 
     def text(self, text): self.k.type(text)
+    def action(self, act): pass
+    def display_jump(self, target="next"): pass
+    def tab_switch(self, direction): pass
+    def clipboard(self, b64): pass
 
 
 def make_input_backend(dry_run=False):
@@ -525,6 +621,17 @@ class ReceiverEngine:
                 b.key(p)
             elif cmd == "T":
                 b.text(unescape_text(p))
+            elif cmd == "A":
+                b.action(p)
+            elif cmd == "J":
+                b.display_jump(p)
+            elif cmd == "B":
+                b.clipboard(p)
+            elif cmd == "W":
+                try:
+                    b.tab_switch(int(p))
+                except ValueError:
+                    pass
         except ValueError:
             pass    # malformed numbers: ignore the packet
 

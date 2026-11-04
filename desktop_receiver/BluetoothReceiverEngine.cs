@@ -251,7 +251,8 @@ namespace AirGlideDesktop
 
                                 if (line.StartsWith("P:", StringComparison.Ordinal))
                                 {
-                                    sp.WriteLine("AIRGLIDE_ACK:Bluetooth");
+                                    var telem = NativeInput.GetLaptopTelemetry();
+                                    sp.WriteLine($"AIRGLIDE_ACK:Bluetooth:5055:{telem.batPct}:{(telem.isCharging ? 1 : 0)}:{telem.cpuPct}:{telem.ramPct}");
                                 }
                             }
                         }

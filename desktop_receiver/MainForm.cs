@@ -875,7 +875,7 @@ namespace AirGlideDesktop
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = "netsh",
-                        Arguments = "advfirewall firewall add rule name=\"AirGlide UDP\" dir=in action=allow protocol=UDP localport=5055,5056 profile=private,public,domain",
+                        Arguments = "advfirewall firewall add rule name=\"AirGlide UDP\" dir=in action=allow protocol=UDP localport=5055,5056 profile=private,domain",
                         Verb = "runas",
                         UseShellExecute = true
                     });

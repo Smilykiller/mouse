@@ -511,6 +511,10 @@ namespace AirGlideDesktop
                     if (!Directory.Exists(dropDir)) Directory.CreateDirectory(dropDir);
 
                     string safeName = Path.GetFileName(filename);
+                    if (string.IsNullOrWhiteSpace(safeName) || safeName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                    {
+                        safeName = "AirGlide_Drop_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".bin";
+                    }
                     string destPath = Path.Combine(dropDir, safeName);
 
                     using (FileStream fs = new FileStream(destPath, FileMode.Create, FileAccess.Write))

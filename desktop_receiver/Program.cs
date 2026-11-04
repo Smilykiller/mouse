@@ -78,7 +78,7 @@ namespace AirGlideDesktop
             catch { }
 
             ApplicationConfiguration.Initialize();
-            bool startMinimized = args.Length > 0 && args[0].Equals("--minimized", StringComparison.OrdinalIgnoreCase);
+            bool startMinimized = args != null && Array.Exists(args, a => string.Equals(a, "--minimized", StringComparison.OrdinalIgnoreCase));
             var mainForm = new MainForm(startMinimized);
 
             // Register background listener for activation signals from any future duplicate launches

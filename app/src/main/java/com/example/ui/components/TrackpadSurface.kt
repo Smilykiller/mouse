@@ -219,6 +219,8 @@ fun TrackpadSurface(
                     var hasMoved = false
                     var usedTwoFingers = false
                     var twoFingersMoved = false
+                    var isPinchZooming = false
+                    var isTwoFingerScrolling = false
                     var usedThreeFingers = false
                     var threeFingersTriggered = false
                     var usedFourFingers = false
@@ -325,15 +327,22 @@ fun TrackpadSurface(
                                 lastSpan = span
                             } else {
                                 val spanDiff = span - lastSpan
-                                if (Math.abs(span - initialSpan) > 28f && Math.abs(spanDiff) > 12f) {
-                                    // Pinch to Zoom
+                                val totalSpanDelta = Math.abs(span - initialSpan)
+
+                                if (!isTwoFingerScrolling && (isPinchZooming || totalSpanDelta > 32f)) {
+                                    // Pinch to Zoom mode locked: strictly zooms, never triggers accidental scroll
+                                    isPinchZooming = true
                                     twoFingersMoved = true
-                                    currentOnZoom(spanDiff > 0)
-                                    lastSpan = span
-                                } else {
+                                    if (Math.abs(spanDiff) > 8f) {
+                                        currentOnZoom(spanDiff > 0)
+                                        lastSpan = span
+                                    }
+                                    lastCenterY = centerY
+                                } else if (!isPinchZooming) {
                                     val dy = centerY - lastCenterY
                                     lastCenterY = centerY
                                     if (Math.abs(dy) > 1.2f) {
+                                        isTwoFingerScrolling = true
                                         twoFingersMoved = true
                                         if (Math.abs(dy) > 6f) haptic.scrollTick()
                                         currentOnScroll(dy)

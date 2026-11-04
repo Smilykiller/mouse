@@ -51,11 +51,13 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.KeyboardCatalog
@@ -86,11 +88,9 @@ fun RemoteKeyboardBar(
     val keyboardController = LocalSoftwareKeyboardController.current
     var showCustomizeDialog by remember { mutableStateOf(false) }
 
-    // Sentinel buffer strategy: always keeps a single space sentinel " "
-    // This guarantees backspace always deletes on PC (even when field was otherwise empty)
-    // and typing any character is instantly dispatched without predictive composition bugs!
-    var liveTextBuffer by remember { mutableStateOf(" ") }
-    var draftMode by remember { mutableStateOf(false) }
+    // Interactive Typing State
+    var liveFieldValue by remember { mutableStateOf(TextFieldValue(" ", TextRange(1))) }
+    var isDraftMode by remember { mutableStateOf(false) }
     var draftText by remember { mutableStateOf("") }
 
     LaunchedEffect(isOpen) {
@@ -188,98 +188,49 @@ fun RemoteKeyboardBar(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Section: Live Interactive Typing Bar (Direct Backspace & Direct Enter)
+                // Mode Selector Bar: [⚡ Live Keys] / [📝 Text & Voice]
                 Row(
                     modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
-                        value = liveTextBuffer,
-                        onValueChange = { incoming ->
-                            if (incoming.length > liveTextBuffer.length) {
-                                // New character(s) typed or pasted: send to PC immediately
-                                val added = incoming.substring(liveTextBuffer.length)
-                                onSendText(added)
-                                liveTextBuffer = " " // reset sentinel
-                            } else if (incoming.length < liveTextBuffer.length) {
-                                // Backspace pressed on Android keyboard: delete char on PC
-                                onKeyPress("BACKSPACE")
-                                liveTextBuffer = " " // reset sentinel
-                            } else {
-                                if (incoming != " ") {
-                                    val typed = incoming.replace(" ", "")
-                                    if (typed.isNotEmpty()) onSendText(typed)
-                                    liveTextBuffer = " "
-                                }
-                            }
-                        },
-                        placeholder = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(DotGreenMild)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Live typing • ⌫ backspace • ↵ enter",
-                                    fontSize = 12.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = GrayMuted
-                                )
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = DotGreenMild,
-                            unfocusedBorderColor = BorderDark,
-                            focusedTextColor = WhitePrimary,
-                            unfocusedTextColor = WhitePrimary
-                        ),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.None,
-                            autoCorrectEnabled = false,
-                            keyboardType = KeyboardType.Text,
-                            imeAction = ImeAction.Done // Direct enter button on bottom right of mobile keyboard
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                // Direct enter button on bottom-right of mobile keyboard
-                                onKeyPress("ENTER")
-                                liveTextBuffer = " "
-                            }
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .focusRequester(focusRequester)
-                            .onPreviewKeyEvent { event ->
-                                if (event.type == KeyEventType.KeyDown && (event.key == Key.Backspace || event.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_DEL)) {
-                                    onKeyPress("BACKSPACE")
-                                    liveTextBuffer = " "
-                                    true
-                                } else false
-                            }
-                            .testTag("remote_text_field")
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    if (liveTextBuffer != " ") {
-                        IconButton(
-                            onClick = { liveTextBuffer = " " },
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (!isDraftMode) DotGreenMild.copy(alpha = 0.2f) else CardDark,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (!isDraftMode) DotGreenMild else BorderDark),
                             modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(CardDark)
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { isDraftMode = false }
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear Input",
-                                tint = GraySecondary
+                            Text(
+                                text = "⚡ Live Typing",
+                                fontSize = 11.sp,
+                                fontWeight = if (!isDraftMode) FontWeight.Bold else FontWeight.Normal,
+                                color = if (!isDraftMode) DotGreenMild else GraySecondary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isDraftMode) DotGreenMild.copy(alpha = 0.2f) else CardDark,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDraftMode) DotGreenMild else BorderDark),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { isDraftMode = true }
+                        ) {
+                            Text(
+                                text = "📝 Draft & Voice",
+                                fontSize = 11.sp,
+                                fontWeight = if (isDraftMode) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isDraftMode) DotGreenMild else GraySecondary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
 
                     // Hide Keyboard Button
@@ -289,15 +240,193 @@ fun RemoteKeyboardBar(
                             onClose()
                         },
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(6.dp))
                             .background(CardDark)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Keyboard,
                             contentDescription = "Hide Keyboard",
-                            tint = DotGreenMild
+                            tint = DotGreenMild,
+                            modifier = Modifier.size(18.dp)
                         )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Section: Input Field based on selected mode
+                if (!isDraftMode) {
+                    // --- LIVE TYPING MODE (Direct keystrokes to PC, 100% IME safe) ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = liveFieldValue,
+                            onValueChange = { incoming ->
+                                val oldText = liveFieldValue.text
+                                val newText = incoming.text
+
+                                if (newText.length > oldText.length) {
+                                    val added = if (newText.startsWith(oldText)) {
+                                        newText.substring(oldText.length)
+                                    } else {
+                                        newText.replace(" ", "")
+                                    }
+                                    if (added.isNotEmpty()) onSendText(added)
+                                    liveFieldValue = TextFieldValue(" ", TextRange(1))
+                                } else if (newText.length < oldText.length) {
+                                    val deletedCount = (oldText.length - newText.length).coerceAtLeast(1)
+                                    repeat(deletedCount) {
+                                        onKeyPress("BACKSPACE")
+                                    }
+                                    liveFieldValue = TextFieldValue(" ", TextRange(1))
+                                } else {
+                                    if (newText != " ") {
+                                        val typed = newText.replace(" ", "")
+                                        if (typed.isNotEmpty()) onSendText(typed)
+                                        liveFieldValue = TextFieldValue(" ", TextRange(1))
+                                    } else {
+                                        liveFieldValue = incoming
+                                    }
+                                }
+                            },
+                            placeholder = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(DotGreenMild)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Live typing • ⌫ backspace • ↵ enter",
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = GrayMuted
+                                    )
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = DotGreenMild,
+                                unfocusedBorderColor = BorderDark,
+                                focusedTextColor = WhitePrimary,
+                                unfocusedTextColor = WhitePrimary
+                            ),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.None,
+                                autoCorrectEnabled = false,
+                                keyboardType = KeyboardType.Ascii,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    onKeyPress("ENTER")
+                                    liveFieldValue = TextFieldValue(" ", TextRange(1))
+                                }
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(focusRequester)
+                                .onPreviewKeyEvent { event ->
+                                    if (event.type == KeyEventType.KeyDown && (event.key == Key.Backspace || event.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_DEL)) {
+                                        onKeyPress("BACKSPACE")
+                                        liveFieldValue = TextFieldValue(" ", TextRange(1))
+                                        true
+                                    } else false
+                                }
+                                .testTag("remote_text_field")
+                        )
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        SpecialKeyButton(
+                            label = "↵ Enter",
+                            onClick = { onKeyPress("ENTER") }
+                        )
+                    }
+                } else {
+                    // --- DRAFT & VOICE MODE (Full sentence composition, copy-paste, voice dictation) ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = draftText,
+                            onValueChange = { draftText = it },
+                            placeholder = {
+                                Text(
+                                    text = "Type sentence or use voice input...",
+                                    fontSize = 12.sp,
+                                    color = GrayMuted
+                                )
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = DotGreenMild,
+                                unfocusedBorderColor = BorderDark,
+                                focusedTextColor = WhitePrimary,
+                                unfocusedTextColor = WhitePrimary
+                            ),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Sentences,
+                                autoCorrectEnabled = true,
+                                keyboardType = KeyboardType.Text,
+                                imeAction = ImeAction.Send
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onSend = {
+                                    if (draftText.isNotEmpty()) {
+                                        onSendText(draftText)
+                                        draftText = ""
+                                    }
+                                }
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(focusRequester)
+                                .testTag("remote_draft_field")
+                        )
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        if (draftText.isNotEmpty()) {
+                            IconButton(
+                                onClick = { draftText = "" },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(CardDark)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear Draft",
+                                    tint = GraySecondary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                if (draftText.isNotEmpty()) {
+                                    onSendText(draftText)
+                                    draftText = ""
+                                }
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DotGreenMild),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = DotGreenMild.copy(alpha = 0.15f),
+                                contentColor = DotGreenMild
+                            ),
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Text(text = "Send ↵", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

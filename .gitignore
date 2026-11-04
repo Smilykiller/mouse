@@ -26,6 +26,7 @@ dist/
 desktop_receiver/bin/
 desktop_receiver/obj/
 desktop_receiver/publish/
+desktop_receiver/single_publish/
 desktop_receiver/dist/
 .vs/
 *.user

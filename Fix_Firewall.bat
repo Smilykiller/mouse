@@ -7,7 +7,7 @@ if %errorlevel% neq 0 (
     exit /b
 )
 netsh advfirewall firewall delete rule name="AirGlide UDP" >nul 2>&1
-netsh advfirewall firewall add rule name="AirGlide UDP" dir=in action=allow protocol=UDP localport=5055,5056 profile=private,public,domain
+netsh advfirewall firewall add rule name="AirGlide UDP" dir=in action=allow protocol=UDP localport=5055,5056 profile=private,domain
 echo.
 echo =========================================================
 echo  Firewall rule added successfully for UDP ports 5055 and 5056.

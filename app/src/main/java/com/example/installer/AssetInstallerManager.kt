@@ -2,6 +2,9 @@ package com.example.installer
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
+import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -66,8 +69,9 @@ object AssetInstallerManager {
     }
 
     /**
-     * Saves the Windows receiver .exe to the phone's public Downloads folder.
-     * Accessible immediately from PC File Explorer when connected via USB charging cable.
+     * Saves BOTH the Windows receiver .exe and the full .zip bundle directly to the phone's public Downloads folder.
+     * Guarantees immediate visibility in Files by Google, Samsung My Files, and Windows File Explorer via USB cable.
+     * Triggers MediaScannerConnection to index the files into the phone's visible Downloads & Recent lists.
      */
     suspend fun saveToPhoneDownloads(context: Context): String = withContext(Dispatchers.IO) {
         try {
@@ -76,30 +80,95 @@ object AssetInstallerManager {
                 return@withContext "Error: Receiver executable could not be extracted"
             }
 
+            val scannedPaths = mutableListOf<String>()
+            val scannedMimes = mutableListOf<String>()
+
+            // 1. Android 10+ (API 29+) MediaStore approach
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val resolver = context.contentResolver
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, RECEIVER_EXE_NAME)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "application/vnd.microsoft.portable-executable")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/AirGlide")
-                }
-                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                    ?: return@withContext "Error: Failed to create download record"
 
-                resolver.openOutputStream(uri)?.use { outStream ->
-                    exeFile.inputStream().use { inStream ->
-                        inStream.copyTo(outStream)
-                    }
+                // A) Save Receiver Executable (.exe) with generic binary MIME so Android media provider doesn't hide it
+                val exeValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, RECEIVER_EXE_NAME)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
-                "Saved to Phone: Downloads/AirGlide/$RECEIVER_EXE_NAME"
-            } else {
-                @Suppress("DEPRECATION")
-                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                val targetDir = File(downloadsDir, "AirGlide").apply { mkdirs() }
-                val destFile = File(targetDir, RECEIVER_EXE_NAME)
-                exeFile.copyTo(destFile, overwrite = true)
-                "Saved to ${destFile.absolutePath}"
+                val exeUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, exeValues)
+                if (exeUri != null) {
+                    resolver.openOutputStream(exeUri)?.use { out ->
+                        exeFile.inputStream().use { input -> input.copyTo(out) }
+                    }
+                    exeValues.clear()
+                    exeValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    resolver.update(exeUri, exeValues, null, null)
+                }
+
+                // B) Also save Receiver Zip Bundle (.zip) - phone file managers universally list .zip under Downloads & Archives!
+                val zipValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, RECEIVER_ZIP_NAME)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/zip")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val zipUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, zipValues)
+                if (zipUri != null) {
+                    resolver.openOutputStream(zipUri)?.use { out ->
+                        context.assets.open(ASSET_ZIP_PATH).use { input -> input.copyTo(out) }
+                    }
+                    zipValues.clear()
+                    zipValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    resolver.update(zipUri, zipValues, null, null)
+                }
             }
+
+            // 2. Direct filesystem copy to standard public Downloads folder
+            @Suppress("DEPRECATION")
+            val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (publicDownloads.exists() || publicDownloads.mkdirs()) {
+                val destExe = File(publicDownloads, RECEIVER_EXE_NAME)
+                try {
+                    exeFile.copyTo(destExe, overwrite = true)
+                    scannedPaths.add(destExe.absolutePath)
+                    scannedMimes.add("application/octet-stream")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Direct copy exe skipped: ${e.message}")
+                }
+
+                val destZip = File(publicDownloads, RECEIVER_ZIP_NAME)
+                try {
+                    context.assets.open(ASSET_ZIP_PATH).use { inStream ->
+                        FileOutputStream(destZip).use { outStream ->
+                            inStream.copyTo(outStream)
+                        }
+                    }
+                    scannedPaths.add(destZip.absolutePath)
+                    scannedMimes.add("application/zip")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Direct copy zip skipped: ${e.message}")
+                }
+            }
+
+            // 3. Immediately index saved files in Android MediaStore / Downloads database
+            if (scannedPaths.isNotEmpty()) {
+                MediaScannerConnection.scanFile(
+                    context.applicationContext,
+                    scannedPaths.toTypedArray(),
+                    scannedMimes.toTypedArray()
+                ) { path, uri ->
+                    Log.i(TAG, "MediaScanner indexed: $path -> $uri")
+                }
+            }
+
+            // 4. Send legacy broadcast to trigger file manager refresh
+            try {
+                @Suppress("DEPRECATION")
+                context.sendBroadcast(
+                    Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(File(publicDownloads, RECEIVER_ZIP_NAME)))
+                )
+            } catch (ignored: Exception) {}
+
+            "✓ Saved to Downloads: '$RECEIVER_ZIP_NAME' & '$RECEIVER_EXE_NAME'"
         } catch (e: Exception) {
             Log.e(TAG, "Error saving to downloads: ${e.message}", e)
             "Error: ${e.localizedMessage}"

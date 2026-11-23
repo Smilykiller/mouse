@@ -1,8 +1,10 @@
 package com.example.ui.dialogs
 
+import android.app.DownloadManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -777,32 +779,62 @@ fun InstallOnLaptopDialog(
                     border = BorderStroke(1.dp, BorderDark),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(12.dp)
                     ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Folder, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text("USB Charging Cable Fallback", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = WhitePrimary)
-                                Text("Copies receiver to phone Downloads/AirGlide folder", fontSize = 10.5.sp, color = GrayMuted)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Folder, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text("USB Cable / Local File Copy", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = WhitePrimary)
+                                    Text("Saves .exe & .zip to phone Downloads (visible in Files & USB)", fontSize = 10.5.sp, color = GrayMuted)
+                                }
                             }
-                        }
 
-                        OutlinedButton(
-                            onClick = { onSaveToDownloads(context) },
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, BorderDark),
-                            modifier = Modifier.height(34.dp)
-                        ) {
-                            Text("Save to Phone", fontSize = 10.5.sp, color = WhitePrimary)
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                if (state.wifiDropStatus?.contains("Saved to Downloads") == true) {
+                                    Button(
+                                        onClick = {
+                                            try {
+                                                val intent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
+                                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                                }
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Opened phone Downloads folder", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                        modifier = Modifier.height(34.dp)
+                                    ) {
+                                        Text("📂 View Files", fontSize = 10.5.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                OutlinedButton(
+                                    onClick = { onSaveToDownloads(context) },
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, BorderDark),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Text(
+                                        if (state.wifiDropStatus?.contains("Saved to Downloads") == true) "Save Again" else "Save to Phone",
+                                        fontSize = 10.5.sp,
+                                        color = WhitePrimary
+                                    )
+                                }
+                            }
                         }
                     }
                 }

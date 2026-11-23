@@ -36,6 +36,8 @@ import androidx.compose.material.icons.filled.Tab
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -116,6 +118,7 @@ fun ControllerScreen(
     val focusRequester = remember { FocusRequester() }
     val isKbOpen = state.isKeyboardOpen
     var showHelpDialog by remember { mutableStateOf(false) }
+    var showToolsDropdown by remember { mutableStateOf(false) }
 
     if (showHelpDialog) {
         QuickTouchpadHelpDialog(
@@ -130,300 +133,404 @@ fun ControllerScreen(
             .fillMaxSize()
             .background(TrueBlack)
             .imePadding() // Automatically shrinks above Android software keyboard
-            .padding(10.dp)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .animateContentSize(animationSpec = tween(250)),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Scrollable Top Header Toolbar: smooth horizontal scroll prevents any cramping or overlapping
-            val headerScrollState = rememberScrollState()
+            // ==============================================================
+            // 1. PRIMARY TOP NAVIGATION BAR (Fixed, Never Collides or Overlaps)
+            // ==============================================================
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(headerScrollState)
                     .padding(horizontal = 2.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 1. Back to Settings Button
+                // Left side: Settings Hub & Connection Status
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(CardDark)
-                        .border(BorderStroke(1.dp, BorderDark), RoundedCornerShape(10.dp))
-                        .clickable { onBackToHub() }
-                        .padding(horizontal = 12.dp, vertical = 7.dp)
-                        .testTag("controller_back_button")
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Settings",
-                        tint = WhitePrimary,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = "Settings",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WhitePrimary
-                    )
-                }
-
-                // 2. Connection Status & Mode Badge (Wi-Fi vs BT)
-                val isBt = state.connectionMode == ConnectionMode.BLUETOOTH
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (state.isLiveConnected) Color(0xFF0F291E) else CardDark,
-                    border = BorderStroke(1.dp, if (state.isLiveConnected) DotGreenMild else BorderDark),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onBackToHub() }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(if (state.isLiveConnected) DotGreenMild else DotAmberMild)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (isBt) "ᛒ Bluetooth" else "📶 Wi-Fi",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.isLiveConnected) DotGreenMild else GraySecondary
-                        )
-                    }
-                }
-
-                // 2b. Laptop Telemetry HUD Badge
-                val telem = state.laptopTelemetry
-                if (telem != null) {
+                    // Back to Settings Hub
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = CardDark,
                         border = BorderStroke(1.dp, BorderDark),
-                        modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onBackToHub() }
+                            .testTag("controller_back_button")
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Settings Hub",
+                                tint = WhitePrimary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "🔋 ${telem.batteryPct}%${if (telem.isCharging) " ⚡" else ""} • CPU ${telem.cpuPct}%",
+                                text = "Hub",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (telem.batteryPct < 20 && !telem.isCharging) DotAmberMild else Color(0xFF38BDF8)
+                                color = WhitePrimary
+                            )
+                        }
+                    }
+
+                    // Connection Badge (Wi-Fi / BT)
+                    val isBt = state.connectionMode == ConnectionMode.BLUETOOTH
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (state.isLiveConnected) Color(0xFF0F291E) else CardDark,
+                        border = BorderStroke(1.dp, if (state.isLiveConnected) DotGreenMild else BorderDark),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onBackToHub() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (state.isLiveConnected) DotGreenMild else DotAmberMild)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = if (isBt) "BT" else "Wi-Fi",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (state.isLiveConnected) DotGreenMild else GraySecondary
+                            )
+                        }
+                    }
+
+                    // Laptop Battery & CPU Telemetry Badge (if received from laptop receiver)
+                    state.laptopTelemetry?.let { telem ->
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = CardDark,
+                            border = BorderStroke(1.dp, BorderDark),
+                            modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                        ) {
+                            Text(
+                                text = "🔋${telem.batteryPct}%${if (telem.isCharging) "⚡" else ""} • ${telem.cpuPct}%",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (telem.batteryPct < 20 && !telem.isCharging) DotAmberMild else Color(0xFF38BDF8),
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 6.dp)
                             )
                         }
                     }
                 }
 
-                // 2c. Presenter Mode Pill
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = CardDark,
-                    border = BorderStroke(1.dp, BorderDark),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onOpenPresenter() }
+                // Right side: Quick Keyboard Toggle + All Options Dropdown
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Keyboard 1-Tap Quick Button
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isKbOpen) ElevatedSurface else CardDark,
+                        border = BorderStroke(1.dp, if (isKbOpen) Color(0xFF38BDF8) else BorderDark),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onToggleKeyboard() }
+                            .testTag("controller_keyboard_button")
                     ) {
-                        Text(
-                            text = "📽️ Presenter",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = GraySecondary
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Keyboard,
+                                contentDescription = "Keyboard",
+                                tint = if (isKbOpen) Color(0xFF38BDF8) else WhitePrimary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Keys",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isKbOpen) Color(0xFF38BDF8) else WhitePrimary
+                            )
+                        }
+                    }
+
+                    // Options & Tools Dropdown Menu
+                    Box {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (showToolsDropdown) Color(0xFF1E293B) else CardDark,
+                            border = BorderStroke(1.dp, if (showToolsDropdown) Color(0xFF38BDF8) else BorderDark),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { showToolsDropdown = true }
+                                .testTag("pad_tools_dropdown_button")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "⚡ Tools ▾",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (showToolsDropdown) Color(0xFF38BDF8) else WhitePrimary
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showToolsDropdown,
+                            onDismissRequest = { showToolsDropdown = false },
+                            modifier = Modifier
+                                .background(Color(0xFF161A24))
+                                .border(BorderStroke(1.dp, Color(0xFF334155)), RoundedCornerShape(12.dp))
+                        ) {
+                            DropdownMenuItem(
+                                leadingIcon = { Text("📽️", fontSize = 15.sp) },
+                                text = { Text("Presenter Remote", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
+                                onClick = {
+                                    showToolsDropdown = false
+                                    onOpenPresenter()
+                                }
+                            )
+                            DropdownMenuItem(
+                                leadingIcon = { Text("🎮", fontSize = 15.sp) },
+                                text = { Text("Virtual Gamepad", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
+                                onClick = {
+                                    showToolsDropdown = false
+                                    onOpenGamepad()
+                                }
+                            )
+                            DropdownMenuItem(
+                                leadingIcon = { Text("🎵", fontSize = 15.sp) },
+                                text = { Text("Media Player Remote", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
+                                onClick = {
+                                    showToolsDropdown = false
+                                    onOpenMediaRemote()
+                                }
+                            )
+                            DropdownMenuItem(
+                                leadingIcon = { Text("🪄", fontSize = 15.sp) },
+                                text = {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Air Mouse (Gyro)", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                        if (state.isAirMotionActive) Text("ON", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    }
+                                },
+                                onClick = {
+                                    showToolsDropdown = false
+                                    onToggleAirMotion()
+                                }
+                            )
+                            DropdownMenuItem(
+                                leadingIcon = { Icon(Icons.Default.DesktopWindows, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp)) },
+                                text = { Text("Jump Display Screen", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
+                                onClick = {
+                                    showToolsDropdown = false
+                                    onJumpDisplay()
+                                }
+                            )
+                            DropdownMenuItem(
+                                leadingIcon = { Text("📜", fontSize = 15.sp) },
+                                text = {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Auto-Scroll", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                        if (state.isAutoScrolling) Text("ON", color = DotGreenMild, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    }
+                                },
+                                onClick = {
+                                    showToolsDropdown = false
+                                    if (state.isAutoScrolling) onStopAutoScroll() else onSetAutoScrollSpeed(2.0f)
+                                }
+                            )
+                            DropdownMenuItem(
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp)) },
+                                text = { Text("Touchpad Gestures Help", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
+                                onClick = {
+                                    showToolsDropdown = false
+                                    showHelpDialog = true
+                                }
+                            )
+                        }
                     }
                 }
+            }
 
-                // 2d. Virtual Gamepad Pill
+            // ==============================================================
+            // 2. SMOOTHLY SCROLLABLE HORIZONTAL QUICK CHIPS (No Overlapping)
+            // ==============================================================
+            val headerScrollState = rememberScrollState()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(headerScrollState)
+                    .padding(vertical = 1.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Air Mouse Quick Pill
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = CardDark,
-                    border = BorderStroke(1.dp, BorderDark),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onOpenGamepad() }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "🎮 Gamepad",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = GraySecondary
-                        )
-                    }
-                }
-
-                // 2e. Media Remote Pill
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = CardDark,
-                    border = BorderStroke(1.dp, BorderDark),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onOpenMediaRemote() }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "🎵 Media",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = GraySecondary
-                        )
-                    }
-                }
-
-                // 3. Air Mouse Toggle
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = if (state.isAirMotionActive) Color(0xFF0284C7) else CardDark,
                     border = BorderStroke(1.dp, if (state.isAirMotionActive) Color(0xFF38BDF8) else BorderDark),
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .clickable { onToggleAirMotion() }
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (state.isAirMotionActive) "🪄 Air Mouse ON" else "🪄 Air Mouse",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.isAirMotionActive) Color.White else GraySecondary
-                        )
-                    }
+                    Text(
+                        text = if (state.isAirMotionActive) "🪄 Air Mouse ON" else "🪄 Air Mouse",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (state.isAirMotionActive) Color.White else GraySecondary,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                    )
                 }
 
-                // 4. Display Jump Button
+                // Jump Display Screen Pill
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = CardDark,
                     border = BorderStroke(1.dp, BorderDark),
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .clickable { onJumpDisplay() }
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.DesktopWindows,
-                            contentDescription = "Display Jump",
+                            contentDescription = null,
                             tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(12.dp)
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Jump Screen",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = GraySecondary
                         )
                     }
                 }
 
-                // 5. Auto-Scroll Toggle
+                // Auto-Scroll Quick Pill
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = if (state.isAutoScrolling) DotGreenMild.copy(alpha = 0.2f) else CardDark,
                     border = BorderStroke(1.dp, if (state.isAutoScrolling) DotGreenMild else BorderDark),
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .clickable {
                             if (state.isAutoScrolling) onStopAutoScroll()
                             else onSetAutoScrollSpeed(2.0f)
                         }
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (state.isAutoScrolling) "📜 Auto-Scroll ON" else "📜 Auto-Scroll",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.isAutoScrolling) DotGreenMild else GraySecondary
-                        )
-                    }
+                    Text(
+                        text = if (state.isAutoScrolling) "📜 Auto-Scroll ON" else "📜 Auto-Scroll",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (state.isAutoScrolling) DotGreenMild else GraySecondary,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                    )
                 }
 
-                // 6. Keyboard Toggle
+                // Presenter Quick Pill
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (isKbOpen) ElevatedSurface else CardDark,
-                    border = BorderStroke(1.dp, if (isKbOpen) Color(0xFF38BDF8) else BorderDark),
+                    shape = RoundedCornerShape(8.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, BorderDark),
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onToggleKeyboard() }
-                        .testTag("controller_keyboard_button")
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onOpenPresenter() }
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Keyboard,
-                            contentDescription = "Keyboard",
-                            tint = if (isKbOpen) Color(0xFF38BDF8) else WhitePrimary,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = "Keyboard",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isKbOpen) Color(0xFF38BDF8) else WhitePrimary
-                        )
-                    }
+                    Text(
+                        text = "📽️ Presenter",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = GraySecondary,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                    )
                 }
 
-                // 7. Touchpad Help Button
+                // Gamepad Quick Pill
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onOpenGamepad() }
+                ) {
+                    Text(
+                        text = "🎮 Gamepad",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = GraySecondary,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                    )
+                }
+
+                // Media Quick Pill
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onOpenMediaRemote() }
+                ) {
+                    Text(
+                        text = "🎵 Media",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = GraySecondary,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                    )
+                }
+
+                // Gestures Help Pill
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
                     color = Color(0xFF1E293B),
                     border = BorderStroke(1.dp, Color(0xFF334155)),
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .clickable { showHelpDialog = true }
                         .testTag("controller_help_button")
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                            contentDescription = "Touchpad Help",
+                            contentDescription = "Help",
                             tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(12.dp)
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Help",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF38BDF8)
                         )
                     }

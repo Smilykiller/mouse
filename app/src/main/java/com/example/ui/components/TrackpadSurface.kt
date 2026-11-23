@@ -111,103 +111,117 @@ fun TrackpadSurface(
     }
 
     // Determine theme base colors
-    val (bgColor, gridColor, baseBorderColor, rippleColor) = remember(theme) {
+    val palette = remember(theme) {
         when (theme) {
-            MousePadTheme.CYBER_NEON -> QuadColors(
-                Color(0xFF070B14),
-                Color(0xFF06B6D4).copy(alpha = 0.35f),
-                Color(0xFF06B6D4),
-                Color(0xFF22D3EE)
+            MousePadTheme.STEALTH -> PadPalette(
+                bgTop = Color(0xFF131D2E),
+                bgBottom = Color(0xFF090D15),
+                accent = Color(0xFF38BDF8),
+                border = Color(0xFF1E293B),
+                ripple = Color(0xFF38BDF8)
             )
-            MousePadTheme.FROSTED_GLASS -> QuadColors(
-                Color(0xFF1E293B),
-                Color(0xFF94A3B8).copy(alpha = 0.25f),
-                Color(0xFF94A3B8).copy(alpha = 0.5f),
-                Color(0xFFE2E8F0)
+            MousePadTheme.CYBER_NEON -> PadPalette(
+                bgTop = Color(0xFF0D172E),
+                bgBottom = Color(0xFF040711),
+                accent = Color(0xFF06B6D4),
+                border = Color(0xFF0891B2),
+                ripple = Color(0xFF22D3EE)
             )
-            MousePadTheme.CARBON_FIBER -> QuadColors(
-                Color(0xFF141417),
-                Color(0xFF3F3F46).copy(alpha = 0.35f),
-                Color(0xFF52525B),
-                Color(0xFFA1A1AA)
+            MousePadTheme.FROSTED_GLASS -> PadPalette(
+                bgTop = Color(0xFF243044),
+                bgBottom = Color(0xFF0E1622),
+                accent = Color(0xFF94A3B8),
+                border = Color(0xFF475569),
+                ripple = Color(0xFFF1F5F9)
             )
-            MousePadTheme.SUNSET_AURA -> QuadColors(
-                Color(0xFF2E1065),
-                Color(0xFFA855F7).copy(alpha = 0.30f),
-                Color(0xFFA855F7),
-                Color(0xFFF472B6)
+            MousePadTheme.CARBON_FIBER -> PadPalette(
+                bgTop = Color(0xFF1E2026),
+                bgBottom = Color(0xFF0D0E11),
+                accent = Color(0xFFF59E0B),
+                border = Color(0xFF3F3F46),
+                ripple = Color(0xFFF59E0B)
             )
-            MousePadTheme.EMERALD_MATRIX -> QuadColors(
-                Color(0xFF021B10),
-                Color(0xFF10B981).copy(alpha = 0.35f),
-                Color(0xFF10B981),
-                Color(0xFF34D399)
+            MousePadTheme.SUNSET_AURA -> PadPalette(
+                bgTop = Color(0xFF35114E),
+                bgBottom = Color(0xFF12031F),
+                accent = Color(0xFFF43F5E),
+                border = Color(0xFFBE185D),
+                ripple = Color(0xFFFB7185)
             )
-            MousePadTheme.RETRO_SYNTHWAVE -> QuadColors(
-                Color(0xFF150A26),
-                Color(0xFFE879F9).copy(alpha = 0.35f),
-                Color(0xFFD946EF),
-                Color(0xFF38BDF8)
+            MousePadTheme.EMERALD_MATRIX -> PadPalette(
+                bgTop = Color(0xFF04261B),
+                bgBottom = Color(0xFF010E09),
+                accent = Color(0xFF10B981),
+                border = Color(0xFF059669),
+                ripple = Color(0xFF34D399)
             )
-            MousePadTheme.NORDIC_MINIMALIST -> QuadColors(
-                Color(0xFF1E2229),
-                Color(0xFFCBD5E1).copy(alpha = 0.20f),
-                Color(0xFF475569),
-                Color(0xFFF1F5F9)
+            MousePadTheme.RETRO_SYNTHWAVE -> PadPalette(
+                bgTop = Color(0xFF280B45),
+                bgBottom = Color(0xFF0B0216),
+                accent = Color(0xFFE879F9),
+                border = Color(0xFFC026D3),
+                ripple = Color(0xFF38BDF8)
             )
-            MousePadTheme.TITANIUM_METAL -> QuadColors(
-                Color(0xFF1C2028),
-                Color(0xFF94A3B8).copy(alpha = 0.30f),
-                Color(0xFF64748B),
-                Color(0xFF38BDF8)
+            MousePadTheme.NORDIC_MINIMALIST -> PadPalette(
+                bgTop = Color(0xFF252C37),
+                bgBottom = Color(0xFF12161D),
+                accent = Color(0xFFCBD5E1),
+                border = Color(0xFF475569),
+                ripple = Color(0xFFF8FAFC)
             )
-            MousePadTheme.DEEP_SPACE -> QuadColors(
-                Color(0xFF070B19),
-                Color(0xFF818CF8).copy(alpha = 0.30f),
-                Color(0xFF6366F1),
-                Color(0xFFA5B4FC)
+            MousePadTheme.TITANIUM_METAL -> PadPalette(
+                bgTop = Color(0xFF262E3B),
+                bgBottom = Color(0xFF13171F),
+                accent = Color(0xFF38BDF8),
+                border = Color(0xFF475569),
+                ripple = Color(0xFF38BDF8)
             )
-            MousePadTheme.TOKYO_MIDNIGHT -> QuadColors(
-                Color(0xFF0D0C1D),
-                Color(0xFFF43F5E).copy(alpha = 0.30f),
-                Color(0xFFEC4899),
-                Color(0xFF38BDF8)
+            MousePadTheme.DEEP_SPACE -> PadPalette(
+                bgTop = Color(0xFF181B42),
+                bgBottom = Color(0xFF060818),
+                accent = Color(0xFF818CF8),
+                border = Color(0xFF4F46E5),
+                ripple = Color(0xFFA5B4FC)
             )
-            MousePadTheme.AURORA_BOREALIS -> QuadColors(
-                Color(0xFF041C1A),
-                Color(0xFF10B981).copy(alpha = 0.30f),
-                Color(0xFF14B8A6),
-                Color(0xFFA855F7)
+            MousePadTheme.TOKYO_MIDNIGHT -> PadPalette(
+                bgTop = Color(0xFF260D38),
+                bgBottom = Color(0xFF070412),
+                accent = Color(0xFFEC4899),
+                border = Color(0xFFBE185D),
+                ripple = Color(0xFF38BDF8)
             )
-            MousePadTheme.AMOLED_PITCH -> QuadColors(
-                Color(0xFF000000),
-                Color(0xFF27272A).copy(alpha = 0.25f),
-                Color(0xFF52525B),
-                Color(0xFFFFFFFF)
+            MousePadTheme.AURORA_BOREALIS -> PadPalette(
+                bgTop = Color(0xFF06332E),
+                bgBottom = Color(0xFF021312),
+                accent = Color(0xFF14B8A6),
+                border = Color(0xFF0D9488),
+                ripple = Color(0xFFA855F7)
             )
-            MousePadTheme.CUSTOM_PHOTO -> QuadColors(
-                Color(0xFF12131A),
-                Color.White.copy(alpha = 0.25f),
-                Color(0xFF38BDF8),
-                Color(0xFF38BDF8)
+            MousePadTheme.AMOLED_PITCH -> PadPalette(
+                bgTop = Color(0xFF080808),
+                bgBottom = Color(0xFF000000),
+                accent = Color(0xFFE4E4E7),
+                border = Color(0xFF27272A),
+                ripple = Color(0xFFFFFFFF)
             )
-            MousePadTheme.STEALTH -> QuadColors(
-                CardDark,
-                BorderDark.copy(alpha = 0.4f),
-                BorderDark,
-                WhitePrimary
+            MousePadTheme.CUSTOM_PHOTO -> PadPalette(
+                bgTop = Color(0xFF12131A),
+                bgBottom = Color(0xFF08090C),
+                accent = Color(0xFF38BDF8),
+                border = Color(0xFF38BDF8),
+                ripple = Color(0xFF38BDF8)
             )
         }
     }
 
-    val activeBorderColor = if (dragLockActive) Color(0xFFF59E0B) else baseBorderColor
+    val activeBorderColor = if (dragLockActive) Color(0xFFF59E0B) else palette.border
     val activeBorderWidth = if (dragLockActive) 2.dp else 1.dp
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(bgColor)
-            .border(activeBorderWidth, activeBorderColor, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.verticalGradient(listOf(palette.bgTop, palette.bgBottom)))
+            .border(activeBorderWidth, activeBorderColor, RoundedCornerShape(20.dp))
             .testTag("trackpad_surface")
             .pointerInput(enableTapToClick) {
                 awaitEachGesture {
@@ -408,153 +422,110 @@ fun TrackpadSurface(
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.35f))
             )
-        } else if (theme == MousePadTheme.SUNSET_AURA) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0xFF2E1065), Color(0xFF4C0519), Color(0xFF0F172A))
-                        )
-                    )
-            )
-        } else if (theme == MousePadTheme.FROSTED_GLASS) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color(0xFF1E293B), Color(0xFF0F172A))
-                        )
-                    )
-            )
-        } else if (theme == MousePadTheme.RETRO_SYNTHWAVE) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color(0xFF16062A), Color(0xFF2C0A47), Color(0xFF0D031A))
-                        )
-                    )
-            )
-        } else if (theme == MousePadTheme.TITANIUM_METAL) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0xFF252A34), Color(0xFF191D24), Color(0xFF2C333F))
-                        )
-                    )
-            )
-        } else if (theme == MousePadTheme.DEEP_SPACE) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(Color(0xFF1E1B4B), Color(0xFF060914)),
-                            radius = 900f
-                        )
-                    )
-            )
-        } else if (theme == MousePadTheme.TOKYO_MIDNIGHT) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0xFF0D0C1D), Color(0xFF260D38), Color(0xFF080614))
-                        )
-                    )
-            )
-        } else if (theme == MousePadTheme.AURORA_BOREALIS) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color(0xFF042421), Color(0xFF093931), Color(0xFF031015))
-                        )
-                    )
-            )
-        } else if (theme == MousePadTheme.AMOLED_PITCH) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-            )
         }
 
-        // 2. High-precision minimalist grid & glowing touch indicator canvas
+        // 2. High-precision minimalist tech accents & glowing touch indicator canvas
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
+            val padPadding = 14.dp.toPx()
 
-            // Tech grid lines
-            val gridSpacing = 44.dp.toPx()
-            var x = 0f
-            while (x < width) {
-                drawLine(
-                    color = gridColor,
-                    start = Offset(x, 0f),
-                    end = Offset(x, height),
-                    strokeWidth = 1f
-                )
-                x += gridSpacing
-            }
-            var y = 0f
-            while (y < height) {
-                drawLine(
-                    color = gridColor,
-                    start = Offset(0f, y),
-                    end = Offset(width, y),
-                    strokeWidth = 1f
-                )
-                y += gridSpacing
+            // A) Subtle high-tech Corner Brackets (┌ ┐ └ ┘)
+            val bracketLen = 22.dp.toPx()
+            val bracketStroke = 2.dp.toPx()
+            val bracketColor = if (dragLockActive) Color(0xFFF59E0B) else palette.accent.copy(alpha = 0.45f)
+
+            // Top-Left (┌)
+            drawLine(bracketColor, Offset(padPadding, padPadding), Offset(padPadding + bracketLen, padPadding), bracketStroke)
+            drawLine(bracketColor, Offset(padPadding, padPadding), Offset(padPadding, padPadding + bracketLen), bracketStroke)
+
+            // Top-Right (┐)
+            drawLine(bracketColor, Offset(width - padPadding, padPadding), Offset(width - padPadding - bracketLen, padPadding), bracketStroke)
+            drawLine(bracketColor, Offset(width - padPadding, padPadding), Offset(width - padPadding, padPadding + bracketLen), bracketStroke)
+
+            // Bottom-Left (└)
+            drawLine(bracketColor, Offset(padPadding, height - padPadding), Offset(padPadding + bracketLen, height - padPadding), bracketStroke)
+            drawLine(bracketColor, Offset(padPadding, height - padPadding), Offset(padPadding, height - padPadding - bracketLen), bracketStroke)
+
+            // Bottom-Right (┘)
+            drawLine(bracketColor, Offset(width - padPadding, height - padPadding), Offset(width - padPadding - bracketLen, height - padPadding), bracketStroke)
+            drawLine(bracketColor, Offset(width - padPadding, height - padPadding), Offset(width - padPadding, height - padPadding - bracketLen), bracketStroke)
+
+            // B) Center Precision Crosshair (+)
+            val cx = width / 2f
+            val cy = height / 2f
+            val crossArm = 10.dp.toPx()
+            val crossColor = palette.accent.copy(alpha = 0.22f)
+            drawLine(crossColor, Offset(cx - crossArm, cy), Offset(cx + crossArm, cy), 1.5f)
+            drawLine(crossColor, Offset(cx, cy - crossArm), Offset(cx, cy + crossArm), 1.5f)
+            drawCircle(crossColor.copy(alpha = 0.12f), radius = 26.dp.toPx(), center = Offset(cx, cy), style = Stroke(1.5f))
+
+            // C) Faint micro-dots (Minimalist guides)
+            val dotSpacing = 54.dp.toPx()
+            val dotColor = palette.accent.copy(alpha = 0.08f)
+            var dotX = dotSpacing
+            while (dotX < width - 20.dp.toPx()) {
+                var dotY = dotSpacing
+                while (dotY < height - 20.dp.toPx()) {
+                    drawCircle(color = dotColor, radius = 1.2.dp.toPx(), center = Offset(dotX, dotY))
+                    dotY += dotSpacing
+                }
+                dotX += dotSpacing
             }
 
-            // Crosshair markers for Cyber Neon and Emerald Matrix themes
-            if (theme == MousePadTheme.CYBER_NEON || theme == MousePadTheme.EMERALD_MATRIX) {
-                val cx = width / 2f
-                val cy = height / 2f
-                val arm = 14.dp.toPx()
-                drawLine(rippleColor.copy(alpha = 0.5f), Offset(cx - arm, cy), Offset(cx + arm, cy), 1.5f)
-                drawLine(rippleColor.copy(alpha = 0.5f), Offset(cx, cy - arm), Offset(cx, cy + arm), 1.5f)
-                drawCircle(rippleColor.copy(alpha = 0.3f), radius = 24.dp.toPx(), center = Offset(cx, cy), style = Stroke(1f))
-            }
-
-            // Touch wave indicator
+            // D) Multi-Layer Glowing Touch Wave Indicator
             touchPosition?.let { pos ->
+                val activeGlow = if (dragLockActive) Color(0xFFF59E0B) else palette.ripple
+
+                // Soft ambient outer glow halo
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(rippleColor.copy(alpha = 0.45f), rippleColor.copy(alpha = 0.1f), Color.Transparent),
+                        colors = listOf(activeGlow.copy(alpha = 0.40f), activeGlow.copy(alpha = 0.08f), Color.Transparent),
                         center = pos,
                         radius = 70.dp.toPx()
                     ),
                     radius = 70.dp.toPx(),
                     center = pos
                 )
+                // Crisp glowing ring
                 drawCircle(
-                    color = rippleColor,
+                    color = activeGlow.copy(alpha = 0.70f),
+                    radius = 20.dp.toPx(),
+                    center = pos,
+                    style = Stroke(1.5.dp.toPx())
+                )
+                // Tactile center point
+                drawCircle(
+                    color = activeGlow,
                     radius = 5.dp.toPx(),
                     center = pos
                 )
             }
         }
 
-        // 3. Center Hint Label
-        Text(
-            text = if (dragLockActive) "DRAGGING ACTIVE • SWIPE TO DRAG" else label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (dragLockActive) Color(0xFFFBBF24) else GrayMuted,
-            letterSpacing = 1.5.sp,
+        // 3. User-Friendly Floating Gesture Guidance Chip at Bottom
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color.Black.copy(alpha = 0.45f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
             modifier = Modifier
-                .align(Alignment.Center)
-                .padding(16.dp)
-        )
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = if (dragLockActive) "🔒 DRAGGING ACTIVE • TAP TO DROP"
+                           else "👆 Move • ✌️ Scroll • 🤏 Zoom • 2-Tap Drag",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (dragLockActive) Color(0xFFFBBF24) else Color(0xFF94A3B8),
+                    letterSpacing = 0.4.sp
+                )
+            }
+        }
 
         // 4. Drag Lock Floating Banner (When Active in ANY Layout)
         if (dragLockActive) {
@@ -590,9 +561,10 @@ fun TrackpadSurface(
     }
 }
 
-private data class QuadColors(
-    val bg: Color,
-    val grid: Color,
+private data class PadPalette(
+    val bgTop: Color,
+    val bgBottom: Color,
+    val accent: Color,
     val border: Color,
     val ripple: Color
 )

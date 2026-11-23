@@ -82,7 +82,7 @@ fun GamepadScreen(
             }
 
             Text(
-                text = "🎮 VIRTUAL ARCADE GAMEPAD",
+                text = "🎮 Gamepad",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color(0xFF38BDF8)

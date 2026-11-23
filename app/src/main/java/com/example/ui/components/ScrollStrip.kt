@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,6 +18,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +39,7 @@ import com.example.ui.theme.BorderDark
 import com.example.ui.theme.BorderHighlight
 import com.example.ui.theme.CardDark
 import com.example.ui.theme.GrayMuted
+import com.example.ui.theme.GraySecondary
 import com.example.ui.theme.WhitePrimary
 
 @Composable
@@ -51,8 +55,12 @@ fun ScrollStrip(
         modifier = modifier
             .width(68.dp)
             .fillMaxHeight()
-            .clip(RoundedCornerShape(16.dp))
-            .background(CardDark)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF131D2E), Color(0xFF090D15))
+                )
+            )
             .testTag("scroll_strip_zone")
             .pointerInput(Unit) {
                 detectDragGestures(
@@ -79,30 +87,57 @@ fun ScrollStrip(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
+            val cx = width / 2f
 
-            // Outer border
+            // Outer border with smooth corner radius
             drawRoundRect(
-                color = if (isDragging) BorderHighlight else BorderDark,
+                color = if (isDragging) Color(0xFF38BDF8) else Color(0xFF1E293B),
                 size = size,
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx()),
-                style = Stroke(width = 1.dp.toPx())
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(20.dp.toPx()),
+                style = Stroke(width = if (isDragging) 1.5.dp.toPx() else 1.dp.toPx())
             )
 
             // Center track guideline
             drawLine(
-                color = if (isDragging) WhitePrimary else BorderDark,
-                start = Offset(width / 2f, 24.dp.toPx()),
-                end = Offset(width / 2f, height - 24.dp.toPx()),
-                strokeWidth = 1.5.dp.toPx()
+                color = if (isDragging) Color(0xFF38BDF8).copy(alpha = 0.5f) else Color(0xFF334155).copy(alpha = 0.4f),
+                start = Offset(cx, 32.dp.toPx()),
+                end = Offset(cx, height - 32.dp.toPx()),
+                strokeWidth = 2.dp.toPx()
             )
 
-            // Thumb
+            // Tactile Ribbed Notches along scroll wheel track
+            val notchSpacing = 16.dp.toPx()
+            var ny = 40.dp.toPx()
+            val notchArm = 8.dp.toPx()
+            while (ny < height - 40.dp.toPx()) {
+                drawLine(
+                    color = if (isDragging) Color(0xFF38BDF8).copy(alpha = 0.35f) else Color(0xFF475569).copy(alpha = 0.25f),
+                    start = Offset(cx - notchArm, ny),
+                    end = Offset(cx + notchArm, ny),
+                    strokeWidth = 1.2.dp.toPx()
+                )
+                ny += notchSpacing
+            }
+
+            // Glowing Dynamic Thumb
             currentIndicatorY?.let { yPos ->
-                val clampedY = yPos.coerceIn(30.dp.toPx(), height - 30.dp.toPx())
+                val clampedY = yPos.coerceIn(36.dp.toPx(), height - 36.dp.toPx())
+                // Soft glow
                 drawCircle(
-                    color = WhitePrimary,
-                    radius = 12.dp.toPx(),
-                    center = Offset(width / 2f, clampedY)
+                    color = Color(0xFF38BDF8).copy(alpha = 0.30f),
+                    radius = 18.dp.toPx(),
+                    center = Offset(cx, clampedY)
+                )
+                // Solid thumb ring
+                drawCircle(
+                    color = Color(0xFF38BDF8),
+                    radius = 11.dp.toPx(),
+                    center = Offset(cx, clampedY)
+                )
+                drawCircle(
+                    color = Color.White,
+                    radius = 4.dp.toPx(),
+                    center = Offset(cx, clampedY)
                 )
             }
         }
@@ -117,20 +152,22 @@ fun ScrollStrip(
             Icon(
                 imageVector = Icons.Default.KeyboardArrowUp,
                 contentDescription = "Scroll Up",
-                tint = if (isDragging) WhitePrimary else GrayMuted
+                tint = if (isDragging) Color(0xFF38BDF8) else GrayMuted,
+                modifier = Modifier.size(18.dp)
             )
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
                     imageVector = Icons.Default.SwapVert,
                     contentDescription = "Scroll Wheel",
-                    tint = if (isDragging) WhitePrimary else GrayMuted
+                    tint = if (isDragging) Color(0xFF38BDF8) else GraySecondary,
+                    modifier = Modifier.size(18.dp)
                 )
                 Text(
                     text = label,
-                    fontSize = 10.sp,
+                    fontSize = 9.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isDragging) WhitePrimary else GrayMuted,
+                    color = if (isDragging) Color(0xFF38BDF8) else GrayMuted,
                     letterSpacing = 1.sp
                 )
             }
@@ -138,7 +175,8 @@ fun ScrollStrip(
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = "Scroll Down",
-                tint = if (isDragging) WhitePrimary else GrayMuted
+                tint = if (isDragging) Color(0xFF38BDF8) else GrayMuted,
+                modifier = Modifier.size(18.dp)
             )
         }
     }

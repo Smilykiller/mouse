@@ -97,7 +97,7 @@ fun MediaRemoteScreen(
             }
 
             Text(
-                text = "🎵 MEDIA PLAYER REMOTE",
+                text = "🎵 Media Remote",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color(0xFF10B981)

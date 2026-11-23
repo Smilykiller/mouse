@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Laptop
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -77,6 +79,7 @@ fun AirGlideTopBar(
     modifier: Modifier = Modifier
 ) {
     var layoutMenuExpanded by remember { mutableStateOf(false) }
+    var moreMenuExpanded by remember { mutableStateOf(false) }
 
     Surface(
         color = DarkSurface,
@@ -86,7 +89,7 @@ fun AirGlideTopBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -98,15 +101,16 @@ fun AirGlideTopBar(
                     if (currentScreen != AppScreen.HUB_SETTINGS) {
                         IconButton(
                             onClick = onNavigateBackToHub,
-                            modifier = Modifier.size(36.dp).testTag("topbar_back_to_hub")
+                            modifier = Modifier.size(34.dp).testTag("topbar_back_to_hub")
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back to Settings Hub",
-                                tint = WhitePrimary
+                                tint = WhitePrimary,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
                     } else {
                         Box(
                             modifier = Modifier
@@ -114,7 +118,7 @@ fun AirGlideTopBar(
                                 .clip(CircleShape)
                                 .background(if (isNetworkConnected) DotGreenMild else DotRedMild)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                     }
 
                     Text(
@@ -124,7 +128,7 @@ fun AirGlideTopBar(
                         color = WhitePrimary
                     )
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Role badge with switcher
                     Surface(
@@ -140,18 +144,18 @@ fun AirGlideTopBar(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                         ) {
                             Icon(
                                 imageVector = if (role == AppRole.CONTROLLER) Icons.Default.PhoneAndroid else Icons.Default.Laptop,
                                 contentDescription = "Role",
                                 tint = WhitePrimary,
-                                modifier = Modifier.size(13.dp)
+                                modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = if (role == AppRole.CONTROLLER) "Controller" else "Host",
-                                fontSize = 11.sp,
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = WhitePrimary
                             )
@@ -159,19 +163,23 @@ fun AirGlideTopBar(
                     }
                 }
 
-                // Action Buttons
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // Action Buttons: compact row with overflow dropdown menu to prevent any screen overlap
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     if (currentScreen == AppScreen.TRACKPAD && role == AppRole.CONTROLLER) {
                         // Layout Switcher Dropdown
                         Box {
                             IconButton(
                                 onClick = { layoutMenuExpanded = true },
-                                modifier = Modifier.testTag("layout_selector_button")
+                                modifier = Modifier.size(34.dp).testTag("layout_selector_button")
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.ViewAgenda,
                                     contentDescription = "Switch Layout",
-                                    tint = WhitePrimary
+                                    tint = WhitePrimary,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                             DropdownMenu(
@@ -207,12 +215,13 @@ fun AirGlideTopBar(
                         // Remote Keyboard Toggle
                         IconButton(
                             onClick = onToggleKeyboard,
-                            modifier = Modifier.testTag("keyboard_toggle_button")
+                            modifier = Modifier.size(34.dp).testTag("keyboard_toggle_button")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Keyboard,
                                 contentDescription = "Toggle Keyboard",
-                                tint = if (isKeyboardOpen) WhitePrimary else GraySecondary
+                                tint = if (isKeyboardOpen) Color(0xFF38BDF8) else GraySecondary,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -220,37 +229,52 @@ fun AirGlideTopBar(
                     // Connectivity Shortcut Button
                     IconButton(
                         onClick = onOpenConnectivity,
-                        modifier = Modifier.testTag("topbar_connectivity_button")
+                        modifier = Modifier.size(34.dp).testTag("topbar_connectivity_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Wifi,
                             contentDescription = "Device Connectivity",
-                            tint = if (isNetworkConnected) WhitePrimary else GrayMuted
+                            tint = if (isNetworkConnected) DotGreenMild else GrayMuted,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
-                    // Desktop Server Script Modal Button
-                    IconButton(
-                        onClick = onOpenScriptModal,
-                        modifier = Modifier.testTag("desktop_script_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Code,
-                            contentDescription = "Laptop Server Script",
-                            tint = GraySecondary
-                        )
-                    }
+                    // More Options Dropdown Menu Button (Groups Laptop Script, Security, Settings)
+                    Box {
+                        IconButton(
+                            onClick = { moreMenuExpanded = true },
+                            modifier = Modifier.size(34.dp).testTag("topbar_more_options_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More Options",
+                                tint = WhitePrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
 
-                    // Security Info Modal Button
-                    IconButton(
-                        onClick = onOpenSecurityModal,
-                        modifier = Modifier.testTag("security_info_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Security,
-                            contentDescription = "Permissions and Security",
-                            tint = GrayMuted
-                        )
+                        DropdownMenu(
+                            expanded = moreMenuExpanded,
+                            onDismissRequest = { moreMenuExpanded = false },
+                            modifier = Modifier.background(Color(0xFF161A24))
+                        ) {
+                            DropdownMenuItem(
+                                leadingIcon = { Icon(Icons.Default.Code, contentDescription = null, tint = GraySecondary) },
+                                text = { Text("Laptop Receiver Script", color = WhitePrimary, fontSize = 13.sp) },
+                                onClick = {
+                                    moreMenuExpanded = false
+                                    onOpenScriptModal()
+                                }
+                            )
+                            DropdownMenuItem(
+                                leadingIcon = { Icon(Icons.Default.Security, contentDescription = null, tint = GraySecondary) },
+                                text = { Text("Security & Permissions", color = WhitePrimary, fontSize = 13.sp) },
+                                onClick = {
+                                    moreMenuExpanded = false
+                                    onOpenSecurityModal()
+                                }
+                            )
+                        }
                     }
                 }
             }

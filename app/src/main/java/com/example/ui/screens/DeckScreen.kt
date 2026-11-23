@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Dashboard
@@ -511,14 +512,89 @@ fun DeckScreen(
         // Category A: Quick Apps
         DeckSectionHeader("🚀 FAST APP LAUNCHERS")
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DeckActionButton("Chrome", Icons.Default.Language, Color(0xFF38BDF8), Modifier.weight(1f)) { onTriggerAction("CHROME") }
+            DeckActionButton("Browser", Icons.Default.Language, Color(0xFF38BDF8), Modifier.weight(1f)) { onTriggerAction("BROWSER") }
             DeckActionButton("VS Code", Icons.Default.Code, Color(0xFF60A5FA), Modifier.weight(1f)) { onTriggerAction("VSCODE") }
-            DeckActionButton("Spotify", Icons.Default.MusicNote, Color(0xFF34D399), Modifier.weight(1f)) { onTriggerAction("SPOTIFY") }
+            DeckActionButton("Spotify", Icons.Default.MusicNote, Color(0xFF10B981), Modifier.weight(1f)) { onTriggerAction("SPOTIFY") }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DeckActionButton("Terminal", Icons.Default.Terminal, Color(0xFFFBBF24), Modifier.weight(1f)) { onTriggerAction("TERMINAL") }
             DeckActionButton("Explorer", Icons.Default.Folder, Color(0xFFF59E0B), Modifier.weight(1f)) { onTriggerAction("EXPLORER") }
             DeckActionButton("Task Mgr", Icons.Default.Speed, Color(0xFFEC4899), Modifier.weight(1f)) { onTriggerAction("TASKMGR") }
+        }
+
+        // Screen Magnifier & Zoom Controller (Zoom In, Zoom Out, Reset)
+        Spacer(modifier = Modifier.height(4.dp))
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = CardDark,
+            border = BorderStroke(1.dp, BorderDark),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.ScreenShare, contentDescription = null, tint = Color(0xFF34D399), modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "SCREEN MAGNIFIER (ZOOM IN & OUT)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GrayMuted,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Zoom in/out entire Windows screen or reset back to 100%",
+                    fontSize = 11.5.sp,
+                    color = GraySecondary
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Zoom Out Button
+                    Button(
+                        onClick = { onTriggerAction("MAGNIFIER_OUT") },
+                        colors = ButtonDefaults.buttonColors(containerColor = ElevatedSurface),
+                        border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Text("🔍 Zoom -", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
+                    }
+
+                    // Zoom In Button
+                    Button(
+                        onClick = { onTriggerAction("MAGNIFIER_IN") },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Text("🔍 Zoom +", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+
+                    // Reset / Exit Magnifier Button
+                    Button(
+                        onClick = { onTriggerAction("MAGNIFIER_CLOSE") },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155)),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.height(44.dp)
+                    ) {
+                        Text("✕ Reset", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+            }
         }
 
         // Category B: System & Window Controls
@@ -530,9 +606,9 @@ fun DeckScreen(
             DeckActionButton("Snip Tool", Icons.Default.Crop, Color(0xFFA78BFA), Modifier.weight(1f)) { onTriggerAction("SCREENSHOT") }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DeckActionButton("Magnifier", Icons.Default.ScreenShare, Color(0xFF34D399), Modifier.weight(1f)) { onTriggerAction("MAGNIFIER") }
-            DeckActionButton("Close App", Icons.Default.Lock, Color(0xFFF87171), Modifier.weight(1f)) { onTriggerAction("CLOSE_APP") }
+            DeckActionButton("Close App", Icons.Default.Close, Color(0xFFF87171), Modifier.weight(1f)) { onTriggerAction("CLOSE_APP") }
             DeckActionButton("Format Code", Icons.Default.FormatPaint, Color(0xFF60A5FA), Modifier.weight(1f)) { onTriggerAction("FORMAT_CODE") }
+            DeckActionButton("Action Center", Icons.Default.Dashboard, Color(0xFF818CF8), Modifier.weight(1f)) { onTriggerAction("WIN_A") }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -577,12 +653,12 @@ private fun CustomDeckButton(
 ) {
     val accent = Color(tile.colorHex)
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         color = CardDark,
         border = BorderStroke(1.dp, accent.copy(alpha = 0.5f)),
         modifier = modifier
-            .height(68.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .height(72.dp)
+            .clip(RoundedCornerShape(14.dp))
             .clickable { onClick() }
     ) {
         Column(
@@ -592,8 +668,8 @@ private fun CustomDeckButton(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(Icons.Default.Bolt, null, tint = accent, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.height(3.dp))
+            Icon(Icons.Default.Bolt, null, tint = accent, modifier = Modifier.size(22.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(tile.title, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WhitePrimary, maxLines = 1)
             Text(tile.subtitle, fontSize = 9.sp, color = GraySecondary, maxLines = 1)
         }
@@ -621,12 +697,12 @@ private fun DeckActionButton(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         color = CardDark,
         border = BorderStroke(1.dp, BorderDark),
         modifier = modifier
-            .height(68.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .height(72.dp)
+            .clip(RoundedCornerShape(14.dp))
             .clickable { onClick() }
     ) {
         Column(
@@ -640,12 +716,12 @@ private fun DeckActionButton(
                 imageVector = icon,
                 contentDescription = label,
                 tint = accentColor,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(5.dp))
             Text(
                 text = label,
-                fontSize = 11.sp,
+                fontSize = 11.5.sp,
                 fontWeight = FontWeight.Bold,
                 color = WhitePrimary,
                 maxLines = 1

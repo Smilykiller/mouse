@@ -111,6 +111,7 @@ fun ControllerScreen(
     onUpdateQuickKeys: (List<String>) -> Unit = {},
     onResetQuickKeys: () -> Unit = {},
     onOpenFullHelp: () -> Unit = {},
+    onTriggerAction: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BackHandler { onBackToHub() }
@@ -360,6 +361,30 @@ fun ControllerScreen(
                                 }
                             )
                             DropdownMenuItem(
+                                leadingIcon = { Text("🔍", fontSize = 15.sp) },
+                                text = { Text("Screen Zoom In (+)", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
+                                onClick = {
+                                    showToolsDropdown = false
+                                    onTriggerAction("MAGNIFIER_IN")
+                                }
+                            )
+                            DropdownMenuItem(
+                                leadingIcon = { Text("🔎", fontSize = 15.sp) },
+                                text = { Text("Screen Zoom Out (-)", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
+                                onClick = {
+                                    showToolsDropdown = false
+                                    onTriggerAction("MAGNIFIER_OUT")
+                                }
+                            )
+                            DropdownMenuItem(
+                                leadingIcon = { Text("✕", fontSize = 15.sp) },
+                                text = { Text("Reset / Close Magnifier", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
+                                onClick = {
+                                    showToolsDropdown = false
+                                    onTriggerAction("MAGNIFIER_CLOSE")
+                                }
+                            )
+                            DropdownMenuItem(
                                 leadingIcon = { Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp)) },
                                 text = { Text("Touchpad Gestures Help", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
                                 onClick = {
@@ -502,6 +527,42 @@ fun ControllerScreen(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = GraySecondary,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                    )
+                }
+
+                // Quick Zoom Out Pill
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onTriggerAction("MAGNIFIER_OUT") }
+                ) {
+                    Text(
+                        text = "🔍 Zoom -",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF38BDF8),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                    )
+                }
+
+                // Quick Zoom In Pill
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, BorderDark),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onTriggerAction("MAGNIFIER_IN") }
+                ) {
+                    Text(
+                        text = "🔍 Zoom +",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF38BDF8),
                         modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
                     )
                 }

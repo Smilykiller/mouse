@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import android.graphics.BitmapFactory
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -424,90 +425,40 @@ fun TrackpadSurface(
             )
         }
 
-        // 2. High-precision minimalist tech accents & glowing touch indicator canvas
+        // 2. Clean, elegant tactile touch indicator canvas (No AI graph/brackets/grids)
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val width = size.width
-            val height = size.height
-            val padPadding = 14.dp.toPx()
-
-            // A) Subtle high-tech Corner Brackets (┌ ┐ └ ┘)
-            val bracketLen = 22.dp.toPx()
-            val bracketStroke = 2.dp.toPx()
-            val bracketColor = if (dragLockActive) Color(0xFFF59E0B) else palette.accent.copy(alpha = 0.45f)
-
-            // Top-Left (┌)
-            drawLine(bracketColor, Offset(padPadding, padPadding), Offset(padPadding + bracketLen, padPadding), bracketStroke)
-            drawLine(bracketColor, Offset(padPadding, padPadding), Offset(padPadding, padPadding + bracketLen), bracketStroke)
-
-            // Top-Right (┐)
-            drawLine(bracketColor, Offset(width - padPadding, padPadding), Offset(width - padPadding - bracketLen, padPadding), bracketStroke)
-            drawLine(bracketColor, Offset(width - padPadding, padPadding), Offset(width - padPadding, padPadding + bracketLen), bracketStroke)
-
-            // Bottom-Left (└)
-            drawLine(bracketColor, Offset(padPadding, height - padPadding), Offset(padPadding + bracketLen, height - padPadding), bracketStroke)
-            drawLine(bracketColor, Offset(padPadding, height - padPadding), Offset(padPadding, height - padPadding - bracketLen), bracketStroke)
-
-            // Bottom-Right (┘)
-            drawLine(bracketColor, Offset(width - padPadding, height - padPadding), Offset(width - padPadding - bracketLen, height - padPadding), bracketStroke)
-            drawLine(bracketColor, Offset(width - padPadding, height - padPadding), Offset(width - padPadding, height - padPadding - bracketLen), bracketStroke)
-
-            // B) Center Precision Crosshair (+)
-            val cx = width / 2f
-            val cy = height / 2f
-            val crossArm = 10.dp.toPx()
-            val crossColor = palette.accent.copy(alpha = 0.22f)
-            drawLine(crossColor, Offset(cx - crossArm, cy), Offset(cx + crossArm, cy), 1.5f)
-            drawLine(crossColor, Offset(cx, cy - crossArm), Offset(cx, cy + crossArm), 1.5f)
-            drawCircle(crossColor.copy(alpha = 0.12f), radius = 26.dp.toPx(), center = Offset(cx, cy), style = Stroke(1.5f))
-
-            // C) Faint micro-dots (Minimalist guides)
-            val dotSpacing = 54.dp.toPx()
-            val dotColor = palette.accent.copy(alpha = 0.08f)
-            var dotX = dotSpacing
-            while (dotX < width - 20.dp.toPx()) {
-                var dotY = dotSpacing
-                while (dotY < height - 20.dp.toPx()) {
-                    drawCircle(color = dotColor, radius = 1.2.dp.toPx(), center = Offset(dotX, dotY))
-                    dotY += dotSpacing
-                }
-                dotX += dotSpacing
-            }
-
-            // D) Multi-Layer Glowing Touch Wave Indicator
+            // Gentle ambient light bloom following touch (soft, natural physical feel)
             touchPosition?.let { pos ->
                 val activeGlow = if (dragLockActive) Color(0xFFF59E0B) else palette.ripple
 
-                // Soft ambient outer glow halo
+                // Soft outer ambient bloom
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(activeGlow.copy(alpha = 0.40f), activeGlow.copy(alpha = 0.08f), Color.Transparent),
+                        colors = listOf(
+                            activeGlow.copy(alpha = 0.28f),
+                            activeGlow.copy(alpha = 0.08f),
+                            Color.Transparent
+                        ),
                         center = pos,
-                        radius = 70.dp.toPx()
+                        radius = 52.dp.toPx()
                     ),
-                    radius = 70.dp.toPx(),
+                    radius = 52.dp.toPx(),
                     center = pos
                 )
-                // Crisp glowing ring
+                // Small subtle tactile contact pip
                 drawCircle(
-                    color = activeGlow.copy(alpha = 0.70f),
-                    radius = 20.dp.toPx(),
-                    center = pos,
-                    style = Stroke(1.5.dp.toPx())
-                )
-                // Tactile center point
-                drawCircle(
-                    color = activeGlow,
-                    radius = 5.dp.toPx(),
+                    color = activeGlow.copy(alpha = 0.75f),
+                    radius = 4.dp.toPx(),
                     center = pos
                 )
             }
         }
 
-        // 3. User-Friendly Floating Gesture Guidance Chip at Bottom
+        // 3. User-Friendly Floating Gesture Guidance Chip at Bottom (Minimalist & unobtrusive)
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = Color.Black.copy(alpha = 0.45f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 12.dp)
@@ -517,12 +468,12 @@ fun TrackpadSurface(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = if (dragLockActive) "🔒 DRAGGING ACTIVE • TAP TO DROP"
-                           else "👆 Move • ✌️ Scroll • 🤏 Zoom • 2-Tap Drag",
+                    text = if (dragLockActive) "🔒 Dragging • Tap to Drop"
+                           else "👆 1-Finger Tap to Click • ✌️ 2-Finger Scroll & Zoom • 2-Tap Drag",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     color = if (dragLockActive) Color(0xFFFBBF24) else Color(0xFF94A3B8),
-                    letterSpacing = 0.4.sp
+                    letterSpacing = 0.3.sp
                 )
             }
         }

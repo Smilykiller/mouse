@@ -53,9 +53,9 @@ fun ScrollStrip(
 
     Box(
         modifier = modifier
-            .width(68.dp)
+            .width(58.dp)
             .fillMaxHeight()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(18.dp))
             .background(
                 Brush.verticalGradient(
                     listOf(Color(0xFF131D2E), Color(0xFF090D15))
@@ -93,50 +93,37 @@ fun ScrollStrip(
             drawRoundRect(
                 color = if (isDragging) Color(0xFF38BDF8) else Color(0xFF1E293B),
                 size = size,
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(20.dp.toPx()),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(18.dp.toPx()),
                 style = Stroke(width = if (isDragging) 1.5.dp.toPx() else 1.dp.toPx())
             )
 
-            // Center track guideline
+            // Center track groove (smooth rounded hairline)
             drawLine(
-                color = if (isDragging) Color(0xFF38BDF8).copy(alpha = 0.5f) else Color(0xFF334155).copy(alpha = 0.4f),
-                start = Offset(cx, 32.dp.toPx()),
-                end = Offset(cx, height - 32.dp.toPx()),
+                color = if (isDragging) Color(0xFF38BDF8).copy(alpha = 0.40f) else Color(0xFF334155).copy(alpha = 0.35f),
+                start = Offset(cx, 36.dp.toPx()),
+                end = Offset(cx, height - 36.dp.toPx()),
                 strokeWidth = 2.dp.toPx()
             )
 
-            // Tactile Ribbed Notches along scroll wheel track
-            val notchSpacing = 16.dp.toPx()
-            var ny = 40.dp.toPx()
-            val notchArm = 8.dp.toPx()
-            while (ny < height - 40.dp.toPx()) {
-                drawLine(
-                    color = if (isDragging) Color(0xFF38BDF8).copy(alpha = 0.35f) else Color(0xFF475569).copy(alpha = 0.25f),
-                    start = Offset(cx - notchArm, ny),
-                    end = Offset(cx + notchArm, ny),
-                    strokeWidth = 1.2.dp.toPx()
-                )
-                ny += notchSpacing
-            }
-
-            // Glowing Dynamic Thumb
+            // Dynamic Ergonomic Thumb Indicator (smooth sliding thumb)
             currentIndicatorY?.let { yPos ->
-                val clampedY = yPos.coerceIn(36.dp.toPx(), height - 36.dp.toPx())
-                // Soft glow
+                val clampedY = yPos.coerceIn(38.dp.toPx(), height - 38.dp.toPx())
+                // Soft ambient glow
                 drawCircle(
-                    color = Color(0xFF38BDF8).copy(alpha = 0.30f),
-                    radius = 18.dp.toPx(),
+                    color = Color(0xFF38BDF8).copy(alpha = 0.25f),
+                    radius = 16.dp.toPx(),
                     center = Offset(cx, clampedY)
                 )
-                // Solid thumb ring
+                // Crisp thumb circle
                 drawCircle(
                     color = Color(0xFF38BDF8),
-                    radius = 11.dp.toPx(),
+                    radius = 9.dp.toPx(),
                     center = Offset(cx, clampedY)
                 )
+                // Center tactile dot
                 drawCircle(
                     color = Color.White,
-                    radius = 4.dp.toPx(),
+                    radius = 3.5.dp.toPx(),
                     center = Offset(cx, clampedY)
                 )
             }

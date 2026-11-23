@@ -515,14 +515,15 @@ namespace AirGlideDesktop
             string act = actionId.ToUpperInvariant().Trim();
             switch (act)
             {
+                case "BROWSER":
                 case "CHROME":
-                    TryLaunch("chrome.exe", "https://google.com");
+                    LaunchBrowser("https://www.google.com");
                     break;
                 case "VSCODE":
                     TryLaunch("code", "");
                     break;
                 case "SPOTIFY":
-                    TryLaunch("spotify.exe", "");
+                    LaunchSpotify();
                     break;
                 case "TERMINAL":
                     TryLaunch("wt.exe", "");
@@ -596,10 +597,28 @@ namespace AirGlideDesktop
                     keybd_event(0x10, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
                     break;
                 case "MAGNIFIER":
-                    // Win + Plus
+                case "MAGNIFIER_IN":
+                case "ZOOM_IN_MAG":
+                    // Win + Plus (Magnifier Zoom In)
                     keybd_event(0x5B, 0, 0, UIntPtr.Zero);
                     keybd_event(0xBB, 0, 0, UIntPtr.Zero);
                     keybd_event(0xBB, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x5B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "MAGNIFIER_OUT":
+                case "ZOOM_OUT_MAG":
+                    // Win + Minus (Magnifier Zoom Out)
+                    keybd_event(0x5B, 0, 0, UIntPtr.Zero);
+                    keybd_event(0xBD, 0, 0, UIntPtr.Zero);
+                    keybd_event(0xBD, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(0x5B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    break;
+                case "MAGNIFIER_CLOSE":
+                case "MAGNIFIER_RESET":
+                    // Win + Esc (Exit Magnifier)
+                    keybd_event(0x5B, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x1B, 0, 0, UIntPtr.Zero);
+                    keybd_event(0x1B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
                     keybd_event(0x5B, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
                     break;
 
@@ -834,6 +853,120 @@ namespace AirGlideDesktop
                 }
             }
             catch { }
+        }
+
+        public static void LaunchBrowser(string url = "https://www.google.com")
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                });
+                return;
+            }
+            catch { }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"\"{url}\"",
+                    UseShellExecute = true
+                });
+                return;
+            }
+            catch { }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c start \"\" \"{url}\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                });
+                return;
+            }
+            catch { }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "msedge.exe",
+                    Arguments = url,
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        }
+
+        public static void LaunchSpotify()
+        {
+            // 1. Try Windows protocol (works for Microsoft Store and desktop Spotify)
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "spotify:",
+                    UseShellExecute = true
+                });
+                return;
+            }
+            catch { }
+
+            // 2. Try AppData desktop path
+            try
+            {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string spotifyExe = Path.Combine(appData, "Spotify", "spotify.exe");
+                if (File.Exists(spotifyExe))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = spotifyExe,
+                        UseShellExecute = true
+                    });
+                    return;
+                }
+            }
+            catch { }
+
+            // 3. Try LocalAppData WindowsApps path
+            try
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string winAppsExe = Path.Combine(localAppData, "Microsoft", "WindowsApps", "Spotify.exe");
+                if (File.Exists(winAppsExe))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = winAppsExe,
+                        UseShellExecute = true
+                    });
+                    return;
+                }
+            }
+            catch { }
+
+            // 4. Try PATH
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "spotify.exe",
+                    UseShellExecute = true
+                });
+                return;
+            }
+            catch { }
+
+            // 5. Fallback: open Spotify web player in default browser
+            LaunchBrowser("https://open.spotify.com");
         }
 
         private static void TryLaunch(string fileName, string args)

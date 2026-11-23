@@ -370,7 +370,8 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                                 onStopAutoScroll = { viewModel.stopAutoScroll() },
                                 onUpdateQuickKeys = { keys -> viewModel.updateQuickKeys(keys) },
                                 onResetQuickKeys = { viewModel.resetQuickKeys() },
-                                onOpenFullHelp = { showFullHelpDialog = true }
+                                onOpenFullHelp = { showFullHelpDialog = true },
+                                onTriggerAction = { act -> viewModel.triggerAction(act) }
                             )
                         } else {
                             HostReceiverScreen(

@@ -379,10 +379,34 @@ class WindowsInput:
             u.keybd_event(0x74, 0, 0, 0); u.keybd_event(0x74, 0, 2, 0)
         elif act == "SLIDE_END":
             u.keybd_event(0x1B, 0, 0, 0); u.keybd_event(0x1B, 0, 2, 0)
-        elif act == "ZOOM_IN":
+        elif act in ("ZOOM_IN",):
             u.keybd_event(0x11, 0, 0, 0); self.scroll(1); u.keybd_event(0x11, 0, 2, 0)
-        elif act == "ZOOM_OUT":
+        elif act in ("ZOOM_OUT",):
             u.keybd_event(0x11, 0, 0, 0); self.scroll(-1); u.keybd_event(0x11, 0, 2, 0)
+        elif act in ("MAGNIFIER", "MAGNIFIER_IN", "ZOOM_IN_MAG"):
+            u.keybd_event(0x5B, 0, 0, 0); u.keybd_event(0xBB, 0, 0, 0)
+            u.keybd_event(0xBB, 0, 2, 0); u.keybd_event(0x5B, 0, 2, 0)
+        elif act in ("MAGNIFIER_OUT", "ZOOM_OUT_MAG"):
+            u.keybd_event(0x5B, 0, 0, 0); u.keybd_event(0xBD, 0, 0, 0)
+            u.keybd_event(0xBD, 0, 2, 0); u.keybd_event(0x5B, 0, 2, 0)
+        elif act in ("MAGNIFIER_CLOSE", "MAGNIFIER_RESET"):
+            u.keybd_event(0x5B, 0, 0, 0); u.keybd_event(0x1B, 0, 0, 0)
+            u.keybd_event(0x1B, 0, 2, 0); u.keybd_event(0x5B, 0, 2, 0)
+        elif act in ("BROWSER", "CHROME"):
+            try:
+                import webbrowser
+                webbrowser.open("https://www.google.com")
+            except Exception:
+                try: os.system("start https://www.google.com")
+                except Exception: pass
+        elif act == "SPOTIFY":
+            try:
+                os.system("start spotify:")
+            except Exception:
+                try:
+                    import webbrowser
+                    webbrowser.open("https://open.spotify.com")
+                except Exception: pass
 
     def display_jump(self, target="next"):
         u = self.user32

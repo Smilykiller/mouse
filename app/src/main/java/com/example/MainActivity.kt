@@ -506,11 +506,21 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
         val context = LocalContext.current
         InstallOnLaptopDialog(
             state = uiState,
+            onSelectTargetType = { type -> viewModel.setInstallTargetType(type) },
+            onSelectBluetoothDevice = { dev -> viewModel.selectInstallBluetoothDevice(dev) },
+            onSelectWifiHost = { host -> viewModel.selectInstallWifiHost(host) },
+            onSendInstallRequest = { ctx -> viewModel.sendInstallRequest(ctx) },
             onStartWifiDrop = { ctx -> viewModel.startWifiDropServer(ctx) },
             onStopWifiDrop = { viewModel.stopWifiDropServer() },
             onBeamBluetooth = { ctx -> viewModel.beamReceiverViaBluetooth(ctx) },
             onSaveToDownloads = { ctx -> viewModel.saveReceiverToPhoneDownloads(ctx) },
             onShareGeneric = { ctx -> viewModel.shareReceiverGeneric(ctx) },
+            onScanBluetooth = { viewModel.scanBluetoothDevices() },
+            onOpenTrackpad = {
+                viewModel.stopWifiDropServer()
+                showInstallOnLaptopDialog = false
+                viewModel.selectTab(AppNavTab.TRACKPAD)
+            },
             onDismiss = {
                 viewModel.stopWifiDropServer()
                 showInstallOnLaptopDialog = false

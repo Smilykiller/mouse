@@ -93,12 +93,20 @@ class BluetoothClient(
 
         return try {
             adapter.bondedDevices.map { device ->
+                val majorClass = try { device.bluetoothClass?.majorDeviceClass } catch (_: Exception) { null }
+                val isComp = majorClass == android.bluetooth.BluetoothClass.Device.Major.COMPUTER ||
+                        (device.name?.contains("laptop", ignoreCase = true) == true) ||
+                        (device.name?.contains("desktop", ignoreCase = true) == true) ||
+                        (device.name?.contains("pc", ignoreCase = true) == true) ||
+                        (device.name?.contains("surface", ignoreCase = true) == true) ||
+                        (device.name?.contains("book", ignoreCase = true) == true)
                 BluetoothDeviceInfo(
                     name = device.name ?: "Unknown Device",
                     address = device.address,
-                    isPaired = true
+                    isPaired = true,
+                    isComputer = isComp
                 )
-            }
+            }.sortedWith(compareByDescending<BluetoothDeviceInfo> { it.isComputer }.thenBy { it.name })
         } catch (e: Exception) {
             Log.w(tag, "Failed to query bonded devices: ${e.message}")
             emptyList()

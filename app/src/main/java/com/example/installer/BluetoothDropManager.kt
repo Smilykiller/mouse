@@ -1,5 +1,8 @@
 package com.example.installer
 
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -17,10 +20,11 @@ object BluetoothDropManager {
     private const val TAG = "BluetoothDrop"
 
     /**
-     * Extracts the receiver .exe and launches the Bluetooth transfer intent.
+     * Extracts the receiver .exe and launches the Bluetooth transfer intent targeting a specific device.
      * Triggers Windows' built-in Bluetooth File Transfer Wizard (fsquirt.exe) on the laptop.
      */
-    suspend fun beamReceiverViaBluetooth(context: Context): Boolean = withContext(Dispatchers.IO) {
+    @SuppressLint("MissingPermission")
+    suspend fun beamReceiverViaBluetooth(context: Context, targetDeviceAddress: String? = null): Boolean = withContext(Dispatchers.IO) {
         try {
             val exeFile = AssetInstallerManager.getReceiverExeFile(context)
             if (!exeFile.exists() || exeFile.length() == 0L) {
@@ -35,10 +39,19 @@ object BluetoothDropManager {
             )
 
             withContext(Dispatchers.Main) {
-                // Try direct Bluetooth OPP first
+                val btAdapter = try { BluetoothAdapter.getDefaultAdapter() } catch (_: Exception) { null }
+                val targetDevice: BluetoothDevice? = if (!targetDeviceAddress.isNullOrBlank()) {
+                    try { btAdapter?.getRemoteDevice(targetDeviceAddress) } catch (_: Exception) { null }
+                } else null
+
+                // Try direct Bluetooth OPP with targeted device
                 val btIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "application/vnd.microsoft.portable-executable"
                     putExtra(Intent.EXTRA_STREAM, uri)
+                    if (targetDevice != null) {
+                        putExtra(BluetoothDevice.EXTRA_DEVICE, targetDevice)
+                        putExtra("android.bluetooth.device.extra.DEVICE", targetDevice)
+                    }
                     setPackage("com.android.bluetooth")
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -52,10 +65,15 @@ object BluetoothDropManager {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "application/vnd.microsoft.portable-executable"
                         putExtra(Intent.EXTRA_STREAM, uri)
+                        if (targetDevice != null) {
+                            putExtra(BluetoothDevice.EXTRA_DEVICE, targetDevice)
+                            putExtra("android.bluetooth.device.extra.DEVICE", targetDevice)
+                        }
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                    val chooser = Intent.createChooser(shareIntent, "Beam AirGlide to Laptop").apply {
+                    val targetName = targetDevice?.name ?: "Laptop"
+                    val chooser = Intent.createChooser(shareIntent, "Beam AirGlide to $targetName").apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
                     context.startActivity(chooser)

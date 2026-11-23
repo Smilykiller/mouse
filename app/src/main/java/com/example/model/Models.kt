@@ -114,10 +114,16 @@ data class DeviceHistoryItem(
     val lastUsedMs: Long = System.currentTimeMillis()
 )
 
+enum class InstallTargetType(val label: String) {
+    BLUETOOTH("Bluetooth Direct"),
+    WIFI("Wi-Fi Local Drop")
+}
+
 data class BluetoothDeviceInfo(
     val name: String,
     val address: String,
-    val isPaired: Boolean = true
+    val isPaired: Boolean = true,
+    val isComputer: Boolean = false
 )
 
 data class LaptopTelemetry(

@@ -44,8 +44,11 @@ class WifiDropServer(
     private val _lastDownloadStatus = MutableStateFlow<String?>(null)
     val lastDownloadStatus: StateFlow<String?> = _lastDownloadStatus.asStateFlow()
 
-    fun start(context: Context, preferredPort: Int = 8080) {
+    private var senderDeviceName: String = "Mobile Controller"
+
+    fun start(context: Context, preferredPort: Int = 8080, senderName: String = "AirGlide Controller") {
         if (_isRunning.value) return
+        senderDeviceName = senderName
 
         serverJob?.cancel()
         serverJob = scope.launch(Dispatchers.IO) {
@@ -102,17 +105,18 @@ class WifiDropServer(
             if (parts.size < 2) return@withContext
             val path = parts[1].split("?")[0]
 
+            val clientIp = socket.inetAddress?.hostAddress ?: "Laptop"
             val out = socket.getOutputStream()
 
             when {
                 path == "/download/exe" -> {
-                    serveExeDownload(context, out)
+                    serveExeDownload(context, out, clientIp)
                 }
                 path == "/download/zip" -> {
-                    serveZipDownload(context, out)
+                    serveZipDownload(context, out, clientIp)
                 }
                 else -> {
-                    serveLandingPage(out)
+                    serveLandingPage(out, clientIp)
                 }
             }
         } catch (e: Exception) {
@@ -122,8 +126,8 @@ class WifiDropServer(
         }
     }
 
-    private suspend fun serveExeDownload(context: Context, out: OutputStream) {
-        _lastDownloadStatus.value = "Preparing executable..."
+    private suspend fun serveExeDownload(context: Context, out: OutputStream, clientIp: String) {
+        _lastDownloadStatus.value = "Sending installer to $clientIp..."
         val exeFile = AssetInstallerManager.getReceiverExeFile(context)
 
         if (!exeFile.exists() || exeFile.length() == 0L) {
@@ -153,10 +157,10 @@ class WifiDropServer(
         out.flush()
 
         _downloadCount.value += 1
-        _lastDownloadStatus.value = "✓ AirGlide downloaded to laptop! Launch it to connect."
+        _lastDownloadStatus.value = "✓ Accepted by $clientIp! Receiver downloaded. Launch it on PC to connect."
     }
 
-    private fun serveZipDownload(context: Context, out: OutputStream) {
+    private fun serveZipDownload(context: Context, out: OutputStream, clientIp: String) {
         val assetStream = AssetInstallerManager.openReceiverZipStream(context)
         val availableBytes = assetStream.available().toLong()
 
@@ -180,10 +184,10 @@ class WifiDropServer(
         out.flush()
 
         _downloadCount.value += 1
-        _lastDownloadStatus.value = "✓ AirGlide archive downloaded to laptop! Extract and run."
+        _lastDownloadStatus.value = "✓ Accepted by $clientIp! Standalone archive downloaded."
     }
 
-    private fun serveLandingPage(out: OutputStream) {
+    private fun serveLandingPage(out: OutputStream, clientIp: String) {
         val html = """
 <!DOCTYPE html>
 <html lang="en">
@@ -214,12 +218,12 @@ class WifiDropServer(
 </head>
 <body>
     <div class="card">
-        <div class="badge">Direct Phone-to-Laptop Drop</div>
-        <h1>AirGlide <span>Remote</span></h1>
-        <p class="subtitle">Downloaded directly from your phone over local Wi-Fi. Zero internet access or web search required.</p>
+        <div class="badge">Direct Install Request from ${senderDeviceName}</div>
+        <h1>AirGlide <span>Remote Receiver</span></h1>
+        <p class="subtitle">Sent to this laptop (<b>$clientIp</b>). Tap accept below to install and start wireless trackpad & keyboard control.</p>
         
-        <a href="/download/exe" class="btn-primary">⚡ Download AirGlide for Windows (.exe)</a>
-        <a href="/download/zip" class="btn-secondary">📦 Download Standalone Archive (.zip)</a>
+        <a href="/download/exe" class="btn-primary">✅ Accept & Download Receiver (.exe)</a>
+        <a href="/download/zip" class="btn-secondary">📦 Download Complete Bundle (.zip)</a>
 
         <div class="steps">
             <div class="step">

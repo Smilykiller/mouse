@@ -71,6 +71,10 @@ data class AirGlideUiState(
     val wifiDropServerUrl: String = "",
     val wifiDropDownloadCount: Int = 0,
     val wifiDropStatus: String? = null,
+    val installTargetType: com.example.model.InstallTargetType = com.example.model.InstallTargetType.BLUETOOTH,
+    val selectedInstallBluetoothDevice: com.example.model.BluetoothDeviceInfo? = null,
+    val selectedInstallWifiHost: DiscoveredHost? = null,
+    val isInstallRequestSent: Boolean = false,
     // Device Connectivity & History
     val isWifiEnabled: Boolean = true,
     val isBluetoothEnabled: Boolean = false,
@@ -685,18 +689,63 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
     // Laptop Receiver Direct Drop & Installation Methods
     // =========================================================================
 
+    fun setInstallTargetType(type: com.example.model.InstallTargetType) {
+        _uiState.update { it.copy(installTargetType = type, isInstallRequestSent = false) }
+    }
+
+    fun selectInstallBluetoothDevice(device: com.example.model.BluetoothDeviceInfo) {
+        _uiState.update { it.copy(selectedInstallBluetoothDevice = device, isInstallRequestSent = false) }
+    }
+
+    fun selectInstallWifiHost(host: DiscoveredHost?) {
+        _uiState.update { it.copy(selectedInstallWifiHost = host, isInstallRequestSent = false) }
+    }
+
     fun startWifiDropServer(context: android.content.Context) {
-        wifiDropServer.start(context)
+        wifiDropServer.start(context, preferredPort = 8080, senderName = deviceName)
     }
 
     fun stopWifiDropServer() {
         wifiDropServer.stop()
     }
 
-    fun beamReceiverViaBluetooth(context: android.content.Context) {
+    fun sendInstallRequest(context: android.content.Context) {
+        val state = _uiState.value
+        if (state.installTargetType == com.example.model.InstallTargetType.BLUETOOTH) {
+            val target = state.selectedInstallBluetoothDevice
+            val targetName = target?.name ?: "Paired Laptop"
+            viewModelScope.launch {
+                _uiState.update {
+                    it.copy(
+                        isInstallRequestSent = true,
+                        wifiDropStatus = "Sending install request to $targetName over Bluetooth..."
+                    )
+                }
+                val ok = com.example.installer.BluetoothDropManager.beamReceiverViaBluetooth(context, target?.address)
+                _uiState.update {
+                    it.copy(
+                        wifiDropStatus = if (ok) "✓ Request sent! Click 'Accept' on $targetName."
+                        else "Could not send to $targetName. Please ensure phone & laptop are paired."
+                    )
+                }
+            }
+        } else {
+            startWifiDropServer(context)
+            val targetName = state.selectedInstallWifiHost?.hostName ?: "Local Laptop"
+            _uiState.update {
+                it.copy(
+                    isInstallRequestSent = true,
+                    wifiDropStatus = "Wi-Fi drop ready for $targetName! Open the link on your laptop to download."
+                )
+            }
+        }
+    }
+
+    fun beamReceiverViaBluetooth(context: android.content.Context, targetAddress: String? = null) {
+        val target = targetAddress ?: _uiState.value.selectedInstallBluetoothDevice?.address
         viewModelScope.launch {
-            _uiState.update { it.copy(wifiDropStatus = "Extracting receiver for Bluetooth transfer...") }
-            val ok = com.example.installer.BluetoothDropManager.beamReceiverViaBluetooth(context)
+            _uiState.update { it.copy(wifiDropStatus = "Extracting receiver for Bluetooth transfer...", isInstallRequestSent = true) }
+            val ok = com.example.installer.BluetoothDropManager.beamReceiverViaBluetooth(context, target)
             _uiState.update {
                 it.copy(
                     wifiDropStatus = if (ok) "✓ Bluetooth beam started! Tap 'Accept' on your Windows laptop."

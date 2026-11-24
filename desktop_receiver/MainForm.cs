@@ -879,7 +879,14 @@ namespace AirGlideDesktop
                         Verb = "runas",
                         UseShellExecute = true
                     });
-                    MessageBox.Show(this, "Windows Firewall rule added for UDP ports 5055 and 5056!", "AirGlide Remote", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "netsh",
+                        Arguments = "advfirewall firewall add rule name=\"AirGlide TCP\" dir=in action=allow protocol=TCP localport=5056 profile=private,domain",
+                        Verb = "runas",
+                        UseShellExecute = true
+                    });
+                    MessageBox.Show(this, "Windows Firewall rules added for UDP (5055, 5056) and TCP (5056) on Private/Domain networks!", "AirGlide Remote", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
                 {

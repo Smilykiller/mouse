@@ -271,11 +271,20 @@ class BluetoothClient(
                             val isChg = parts[4] == "1"
                             val cpu = parts[5].toIntOrNull() ?: 0
                             val ram = parts[6].toIntOrNull() ?: 0
+                            var screenW = 1920
+                            var screenH = 1080
+                            if (parts.size >= 8) {
+                                val dims = parts[7].split("x")
+                                screenW = dims[0].toIntOrNull() ?: 1920
+                                screenH = dims.getOrNull(1)?.toIntOrNull() ?: 1080
+                            }
                             _telemetry.value = com.example.model.LaptopTelemetry(
                                 batteryPct = bat,
                                 isCharging = isChg,
                                 cpuPct = cpu,
                                 ramPct = ram,
+                                screenWidth = screenW,
+                                screenHeight = screenH,
                                 lastUpdatedMs = System.currentTimeMillis()
                             )
                         }

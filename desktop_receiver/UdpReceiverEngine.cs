@@ -162,6 +162,7 @@ namespace AirGlideDesktop
                 ActiveDeviceId = null;
                 Devices.Clear();
             }
+            NativeInput.ReleaseAllHeldInputs();
             OnLog?.Invoke("Phone released - the next phone that connects takes control.");
         }
 
@@ -217,7 +218,8 @@ namespace AirGlideDesktop
             if (cmd == "P")
             {
                 var telem = NativeInput.GetLaptopTelemetry();
-                Reply($"AIRGLIDE_ACK:{HostName}:{Port}:{telem.batPct}:{(telem.isCharging ? 1 : 0)}:{telem.cpuPct}:{telem.ramPct}", sender);
+                var res = NativeInput.GetScreenResolution();
+                Reply($"AIRGLIDE_ACK:{HostName}:{Port}:{telem.batPct}:{(telem.isCharging ? 1 : 0)}:{telem.cpuPct}:{telem.ramPct}:{res.width}x{res.height}", sender);
                 return;
             }
 
@@ -271,7 +273,7 @@ namespace AirGlideDesktop
             int first = msg.IndexOf(':');
             if (first != 1) return false;                 // commands are exactly one letter
             cmd = msg.Substring(0, 1);
-            if ("MCDUSKTPXAJBW".IndexOf(cmd[0]) < 0) return false;
+            if ("MCDUSKTPXAJBWNOQ".IndexOf(cmd[0]) < 0) return false;
 
             string rest = msg.Substring(first + 1);
 
@@ -454,6 +456,31 @@ namespace AirGlideDesktop
                         OnPacketProcessed?.Invoke("TAB_SWITCH", dir.ToString());
                     }
                     break;
+                case "N": // Absolute Move: N:<u_norm>,<v_norm>:<devId>
+                {
+                    string[] uv = payload.Split(',');
+                    if (uv.Length == 2 && TryNumber(uv[0], out double u) && TryNumber(uv[1], out double v))
+                    {
+                        NativeInput.MoveAbsolute((float)u, (float)v);
+                        OnPacketProcessed?.Invoke("ABS_MOVE", $"{u:F3},{v:F3}");
+                    }
+                    break;
+                }
+                case "O": // Absolute Click: O:<u_norm>,<v_norm>,<btn>:<devId>
+                {
+                    string[] uvb = payload.Split(',');
+                    if (uvb.Length >= 2 && TryNumber(uvb[0], out double u) && TryNumber(uvb[1], out double v))
+                    {
+                        string btn = uvb.Length > 2 ? uvb[2] : "L";
+                        NativeInput.ClickAbsolute((float)u, (float)v, btn);
+                        OnPacketProcessed?.Invoke("ABS_CLICK", $"{u:F3},{v:F3},{btn}");
+                    }
+                    break;
+                }
+                case "Q": // Safety Clear
+                    NativeInput.ReleaseAllHeldInputs();
+                    OnPacketProcessed?.Invoke("SAFETY_CLEAR", "");
+                    break;
             }
         }
 
@@ -485,6 +512,48 @@ namespace AirGlideDesktop
                     if (read <= 0) return;
 
                     string header = Encoding.UTF8.GetString(buffer, 0, read);
+
+                    if (header.StartsWith("GET /screen", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Security check: Only allow active connected device or loopback
+                        IPAddress? remoteAddr = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
+                        if (remoteAddr != null && remoteAddr.IsIPv4MappedToIPv6)
+                        {
+                            remoteAddr = remoteAddr.MapToIPv4();
+                        }
+                        string remoteIp = remoteAddr?.ToString() ?? "";
+                        bool isAuthorized = remoteAddr != null && IPAddress.IsLoopback(remoteAddr);
+                        if (!isAuthorized && !string.IsNullOrEmpty(ActiveDeviceId))
+                        {
+                            if (Devices.TryGetValue(ActiveDeviceId, out var dev) && dev.IpAddress == remoteIp)
+                            {
+                                isAuthorized = true;
+                            }
+                        }
+
+                        if (!isAuthorized)
+                        {
+                            byte[] forbidden = Encoding.UTF8.GetBytes("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                            stream.Write(forbidden, 0, forbidden.Length);
+                            return;
+                        }
+
+                        byte[]? frame = NativeInput.CaptureScreenJpeg(60, 1280);
+                        if (frame != null && frame.Length > 0)
+                        {
+                            string respHdr = $"HTTP/1.1 200 OK\r\nContent-Type: image/jpeg\r\nContent-Length: {frame.Length}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n";
+                            byte[] hdrBytes = Encoding.UTF8.GetBytes(respHdr);
+                            stream.Write(hdrBytes, 0, hdrBytes.Length);
+                            stream.Write(frame, 0, frame.Length);
+                        }
+                        else
+                        {
+                            byte[] notFound = Encoding.UTF8.GetBytes("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                            stream.Write(notFound, 0, notFound.Length);
+                        }
+                        return;
+                    }
+
                     string filename = "AirGlide_Drop_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".bin";
                     int fnIdx = header.IndexOf("filename=");
                     if (fnIdx > 0)

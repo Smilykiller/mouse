@@ -91,6 +91,7 @@ fun DeckScreen(
     onSwitchTab: (Int) -> Unit,
     onSetAutoScrollSpeed: (Float) -> Unit,
     onStopAutoScroll: () -> Unit,
+    onOpenScreenDigitizer: () -> Unit = {},
     onSetSubTab: (String) -> Unit = {},
     onTriggerCustomMacro: (CustomMacroTile) -> Unit = {},
     onAddCustomMacro: (CustomMacroTile) -> Unit = {},
@@ -277,6 +278,66 @@ fun DeckScreen(
                 ) {
                     Text(
                         text = "Snap ➔",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                    )
+                }
+            }
+        }
+
+        // ==============================================================
+        // 1.5. SCREEN MIRROR & DIGITIZER (LANDSCAPE)
+        // ==============================================================
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = CardDark,
+            border = BorderStroke(1.dp, BorderDark),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF38BDF8).copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🎯", fontSize = 18.sp)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Screen Mirror & Digitizer",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = WhitePrimary
+                        )
+                        Text(
+                            text = "Full-screen landscape mirror & coordinate map",
+                            fontSize = 11.5.sp,
+                            color = GraySecondary
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFF0284C7),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onOpenScreenDigitizer() }
+                ) {
+                    Text(
+                        text = "Open ➔",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,

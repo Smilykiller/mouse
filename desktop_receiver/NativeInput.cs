@@ -337,6 +337,112 @@ namespace AirGlideDesktop
             SendMouse(MOUSEEVENTF_MOVE, dx, dy, 0);
         }
 
+        public static void MoveAbsolute(float u, float v)
+        {
+            try
+            {
+                int screenWidth = Screen.PrimaryScreen?.Bounds.Width ?? 1920;
+                int screenHeight = Screen.PrimaryScreen?.Bounds.Height ?? 1080;
+                u = Math.Max(0f, Math.Min(1f, u));
+                v = Math.Max(0f, Math.Min(1f, v));
+                int targetX = (int)Math.Round(u * (screenWidth - 1));
+                int targetY = (int)Math.Round(v * (screenHeight - 1));
+                SetCursorPos(targetX, targetY);
+            }
+            catch { }
+        }
+
+        public static void ClickAbsolute(float u, float v, string button)
+        {
+            MoveAbsolute(u, v);
+            if (button == "R") RightClick();
+            else if (button == "M") MiddleClick();
+            else LeftClick();
+        }
+
+        public static void ReleaseAllHeldInputs()
+        {
+            try
+            {
+                MouseUp("L");
+                MouseUp("R");
+                MouseUp("M");
+                byte[] modifiers = new byte[] { 0x10, 0x11, 0x12, 0x5B }; // Shift, Ctrl, Alt, Win
+                foreach (byte vk in modifiers)
+                {
+                    keybd_event(vk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                }
+            }
+            catch { }
+        }
+
+        public static (int width, int height) GetScreenResolution()
+        {
+            try
+            {
+                var bounds = Screen.PrimaryScreen?.Bounds;
+                if (bounds.HasValue && bounds.Value.Width > 0 && bounds.Value.Height > 0)
+                {
+                    return (bounds.Value.Width, bounds.Value.Height);
+                }
+            }
+            catch { }
+            return (1920, 1080);
+        }
+
+        public static byte[]? CaptureScreenJpeg(int quality = 60, int maxDimension = 1280)
+        {
+            try
+            {
+                Rectangle bounds = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
+                using Bitmap bmp = new Bitmap(bounds.Width, bounds.Height);
+                using (Graphics g = Graphics.FromImage(bmp))
+                {
+                    g.CopyFromScreen(bounds.X, bounds.Y, 0, 0, bounds.Size, CopyPixelOperation.SourceCopy);
+                }
+
+                int targetW = bounds.Width;
+                int targetH = bounds.Height;
+                if (targetW > maxDimension || targetH > maxDimension)
+                {
+                    float scale = Math.Min((float)maxDimension / targetW, (float)maxDimension / targetH);
+                    targetW = (int)(targetW * scale);
+                    targetH = (int)(targetH * scale);
+                }
+
+                using Bitmap scaled = (targetW == bounds.Width && targetH == bounds.Height) 
+                    ? (Bitmap)bmp.Clone() 
+                    : new Bitmap(bmp, new Size(targetW, targetH));
+
+                using MemoryStream ms = new MemoryStream();
+                System.Drawing.Imaging.ImageCodecInfo? jpegCodec = null;
+                foreach (var c in System.Drawing.Imaging.ImageCodecInfo.GetImageEncoders())
+                {
+                    if (c.FormatID == System.Drawing.Imaging.ImageFormat.Jpeg.Guid)
+                    {
+                        jpegCodec = c;
+                        break;
+                    }
+                }
+
+                if (jpegCodec != null)
+                {
+                    using var encoderParams = new System.Drawing.Imaging.EncoderParameters(1);
+                    encoderParams.Param[0] = new System.Drawing.Imaging.EncoderParameter(System.Drawing.Imaging.Encoder.Quality, (long)quality);
+                    scaled.Save(ms, jpegCodec, encoderParams);
+                }
+                else
+                {
+                    scaled.Save(ms, System.Drawing.Imaging.ImageFormat.Jpeg);
+                }
+                return ms.ToArray();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public static void LeftClick()
         {
             MouseDown("L");

@@ -175,7 +175,8 @@ namespace AirGlideDesktop
                                 try
                                 {
                                     var telem = NativeInput.GetLaptopTelemetry();
-                                    _writer.WriteString($"AIRGLIDE_ACK:Bluetooth:5055:{telem.batPct}:{(telem.isCharging ? 1 : 0)}:{telem.cpuPct}:{telem.ramPct}\n");
+                                    var res = NativeInput.GetScreenResolution();
+                                    _writer.WriteString($"AIRGLIDE_ACK:Bluetooth:5055:{telem.batPct}:{(telem.isCharging ? 1 : 0)}:{telem.cpuPct}:{telem.ramPct}:{res.width}x{res.height}\n");
                                     await _writer.StoreAsync();
                                 }
                                 catch { }
@@ -252,7 +253,8 @@ namespace AirGlideDesktop
                                 if (line.StartsWith("P:", StringComparison.Ordinal))
                                 {
                                     var telem = NativeInput.GetLaptopTelemetry();
-                                    sp.WriteLine($"AIRGLIDE_ACK:Bluetooth:5055:{telem.batPct}:{(telem.isCharging ? 1 : 0)}:{telem.cpuPct}:{telem.ramPct}");
+                                    var res = NativeInput.GetScreenResolution();
+                                    sp.WriteLine($"AIRGLIDE_ACK:Bluetooth:5055:{telem.batPct}:{(telem.isCharging ? 1 : 0)}:{telem.cpuPct}:{telem.ramPct}:{res.width}x{res.height}");
                                 }
                             }
                         }

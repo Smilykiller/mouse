@@ -70,6 +70,9 @@ sealed class RemoteCommand {
     data class ClipboardSync(val base64Text: String) : RemoteCommand()
     data class TabSwitch(val direction: Int) : RemoteCommand()
     data class Presence(val deviceId: String, val deviceName: String) : RemoteCommand()
+    data class AbsoluteMove(val u: Float, val v: Float) : RemoteCommand()
+    data class AbsoluteClick(val u: Float, val v: Float, val button: String = "L") : RemoteCommand()
+    object SafetyClear : RemoteCommand()
     object Disconnect : RemoteCommand()
 
     fun toWireString(deviceId: String): String {
@@ -85,6 +88,9 @@ sealed class RemoteCommand {
             is DisplayJump -> "J:$target:$deviceId"
             is ClipboardSync -> "B:$base64Text:$deviceId"
             is TabSwitch -> "W:$direction:$deviceId"
+            is AbsoluteMove -> "N:${String.format(java.util.Locale.US, "%.4f", u)},${String.format(java.util.Locale.US, "%.4f", v)}:$deviceId"
+            is AbsoluteClick -> "O:${String.format(java.util.Locale.US, "%.4f", u)},${String.format(java.util.Locale.US, "%.4f", v)},$button:$deviceId"
+            is SafetyClear -> "Q:clear:$deviceId"
             is Presence -> "P:$deviceId:${deviceName.replace(":", "-")}"
             is Disconnect -> "X:bye:$deviceId"
         }
@@ -131,6 +137,8 @@ data class LaptopTelemetry(
     val isCharging: Boolean = true,
     val cpuPct: Int = 0,
     val ramPct: Int = 0,
+    val screenWidth: Int = 1920,
+    val screenHeight: Int = 1080,
     val lastUpdatedMs: Long = 0L
 )
 

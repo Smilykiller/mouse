@@ -97,7 +97,10 @@ data class AirGlideUiState(
     val laptopTelemetry: com.example.model.LaptopTelemetry? = null,
     // Custom Stream Deck Macros & Sub-modes
     val customMacroTiles: List<com.example.model.CustomMacroTile> = emptyList(),
-    val deckActiveSubTab: String = "DECK"
+    val deckActiveSubTab: String = "DECK",
+    // Absolute Coordinate Digitizer & Screen Mirroring State
+    val isLiveMirrorActive: Boolean = false,
+    val showScreenDigitizer: Boolean = false
 )
 
 /** The laptop counts as "live" when we heard from it within this window. */
@@ -582,6 +585,32 @@ class AirGlideViewModel(application: Application) : AndroidViewModel(application
             haptics.click()
         }
         dispatchCommand(RemoteCommand.Action(actionId))
+    }
+
+    fun onAbsoluteMove(u: Float, v: Float) {
+        dispatchCommand(RemoteCommand.AbsoluteMove(u, v))
+    }
+
+    fun onAbsoluteClick(u: Float, v: Float, button: String = "L") {
+        if (_uiState.value.settings.hapticFeedback) {
+            haptics.click()
+        }
+        dispatchCommand(RemoteCommand.AbsoluteClick(u, v, button))
+    }
+
+    fun sendSafetyClear() {
+        dispatchCommand(RemoteCommand.SafetyClear)
+    }
+
+    fun toggleLiveMirror() {
+        _uiState.update { it.copy(isLiveMirrorActive = !it.isLiveMirrorActive) }
+    }
+
+    fun openScreenDigitizer(open: Boolean) {
+        if (!open) {
+            sendSafetyClear()
+        }
+        _uiState.update { it.copy(showScreenDigitizer = open) }
     }
 
     fun jumpDisplay() {

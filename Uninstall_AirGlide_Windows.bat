@@ -24,6 +24,7 @@ reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\AirGlide" /
 
 echo [4/5] Removing Windows Firewall rules...
 netsh advfirewall firewall delete rule name="AirGlide UDP" >nul 2>&1
+netsh advfirewall firewall delete rule name="AirGlide TCP" >nul 2>&1
 
 echo [5/5] Deleting AirGlide application files...
 set "INSTALL_DIR=%LOCALAPPDATA%\AirGlide"

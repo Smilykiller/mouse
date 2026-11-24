@@ -175,19 +175,22 @@ echo AirGlide has been successfully uninstalled.
                 try { if (File.Exists(StartMenuShortcutPath)) File.Delete(StartMenuShortcutPath); } catch { }
                 try { if (File.Exists(StartMenuUninstallShortcutPath)) File.Delete(StartMenuUninstallShortcutPath); } catch { }
 
-                // 4. Remove Firewall Rule
+                // 4. Remove Firewall Rules
                 try
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo
+                    foreach (string rule in new[] { "AirGlide UDP", "AirGlide TCP" })
                     {
-                        FileName = "netsh",
-                        Arguments = "advfirewall firewall delete rule name=\"AirGlide UDP\"",
-                        CreateNoWindow = true,
-                        UseShellExecute = false,
-                        WindowStyle = ProcessWindowStyle.Hidden
-                    };
-                    using var p = Process.Start(psi);
-                    p?.WaitForExit(2000);
+                        ProcessStartInfo psi = new ProcessStartInfo
+                        {
+                            FileName = "netsh",
+                            Arguments = $"advfirewall firewall delete rule name=\"{rule}\"",
+                            CreateNoWindow = true,
+                            UseShellExecute = false,
+                            WindowStyle = ProcessWindowStyle.Hidden
+                        };
+                        using var p = Process.Start(psi);
+                        p?.WaitForExit(2000);
+                    }
                 }
                 catch { }
 

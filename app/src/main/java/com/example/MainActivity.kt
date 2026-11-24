@@ -65,6 +65,7 @@ import com.example.ui.screens.EcosystemScreen
 import com.example.ui.screens.HelpScreen
 import com.example.ui.screens.HostReceiverScreen
 import com.example.ui.screens.HubSettingsScreen
+import com.example.ui.screens.ScreenDigitizerScreen
 import com.example.ui.screens.ThemesScreen
 import com.example.ui.theme.AirGlideTheme
 import com.example.ui.theme.BorderDark
@@ -296,7 +297,16 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                 .padding(innerPadding)
                 .background(TrueBlack)
         ) {
-            if (uiState.currentScreen == AppScreen.DEVICE_CONNECTION) {
+            if (uiState.showScreenDigitizer) {
+                ScreenDigitizerScreen(
+                    state = uiState,
+                    onBack = { viewModel.openScreenDigitizer(false) },
+                    onAbsoluteMove = { u, v -> viewModel.onAbsoluteMove(u, v) },
+                    onAbsoluteClick = { u, v, btn -> viewModel.onAbsoluteClick(u, v, btn) },
+                    onSafetyClear = { viewModel.sendSafetyClear() },
+                    onToggleLiveMirror = { viewModel.toggleLiveMirror() }
+                )
+            } else if (uiState.currentScreen == AppScreen.DEVICE_CONNECTION) {
                 DeviceConnectivityScreen(
                     state = uiState,
                     onBack = { viewModel.navigateTo(AppScreen.TRACKPAD) },
@@ -371,7 +381,8 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                                 onUpdateQuickKeys = { keys -> viewModel.updateQuickKeys(keys) },
                                 onResetQuickKeys = { viewModel.resetQuickKeys() },
                                 onOpenFullHelp = { showFullHelpDialog = true },
-                                onTriggerAction = { act -> viewModel.triggerAction(act) }
+                                onTriggerAction = { act -> viewModel.triggerAction(act) },
+                                onOpenScreenDigitizer = { viewModel.openScreenDigitizer(true) }
                             )
                         } else {
                             HostReceiverScreen(
@@ -389,6 +400,7 @@ fun AirGlideApp(viewModel: AirGlideViewModel) {
                             onSwitchTab = { dir -> viewModel.switchTab(dir) },
                             onSetAutoScrollSpeed = { spd -> viewModel.setAutoScrollSpeed(spd) },
                             onStopAutoScroll = { viewModel.stopAutoScroll() },
+                            onOpenScreenDigitizer = { viewModel.openScreenDigitizer(true) },
                             onSetSubTab = { tab -> viewModel.setDeckSubTab(tab) },
                             onTriggerCustomMacro = { tile -> viewModel.triggerCustomMacro(tile) },
                             onAddCustomMacro = { tile -> viewModel.addCustomMacroTile(tile) },

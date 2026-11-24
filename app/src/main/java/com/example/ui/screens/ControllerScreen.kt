@@ -112,6 +112,7 @@ fun ControllerScreen(
     onResetQuickKeys: () -> Unit = {},
     onOpenFullHelp: () -> Unit = {},
     onTriggerAction: (String) -> Unit = {},
+    onOpenScreenDigitizer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BackHandler { onBackToHub() }
@@ -340,6 +341,14 @@ fun ControllerScreen(
                                 }
                             )
                             DropdownMenuItem(
+                                leadingIcon = { Text("🎯", fontSize = 15.sp) },
+                                text = { Text("Screen Mirror & Digitizer (Landscape)", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold, fontSize = 13.sp) },
+                                onClick = {
+                                    showToolsDropdown = false
+                                    onOpenScreenDigitizer()
+                                }
+                            )
+                            DropdownMenuItem(
                                 leadingIcon = { Icon(Icons.Default.DesktopWindows, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp)) },
                                 text = { Text("Jump Display Screen", color = WhitePrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
                                 onClick = {
@@ -409,6 +418,24 @@ fun ControllerScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Screen Access & Mirror Pill (Landscape)
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF0284C7).copy(alpha = 0.20f),
+                    border = BorderStroke(1.dp, Color(0xFF38BDF8)),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onOpenScreenDigitizer() }
+                ) {
+                    Text(
+                        text = "🎯 Screen Mirror & Map",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF38BDF8),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                    )
+                }
+
                 // Air Mouse Quick Pill
                 Surface(
                     shape = RoundedCornerShape(8.dp),

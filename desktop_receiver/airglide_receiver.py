@@ -34,7 +34,7 @@ import time
 
 DEFAULT_PORT = 5055
 DISCOVERY_PORT = 5056
-VALID_COMMANDS = frozenset("MCDUSKTPXAJBW")
+VALID_COMMANDS = frozenset("MCDUSKTPXAJBWNOQ")
 CONTROLLER_TIMEOUT = 10.0      # seconds of silence before another phone may take over
 IS_WINDOWS = platform.system() == "Windows"
 
@@ -190,6 +190,9 @@ class DryRunInput:
     def display_jump(self, target="next"): self._rec("display_jump", target)
     def clipboard(self, b64): self._rec("clipboard", b64)
     def tab_switch(self, direction): self._rec("tab_switch", direction)
+    def move_abs(self, u, v): self._rec("move_abs", u, v)
+    def click_abs(self, u, v, btn="L"): self._rec("click_abs", u, v, btn)
+    def release_all(self): self._rec("release_all")
 
 
 # ---- Windows SendInput structures (defined everywhere so they can be unit-tested) ----
@@ -293,6 +296,32 @@ class WindowsInput:
 
     def scroll(self, notches):
         self._send(self._mouse(self.WHEEL, data=int(notches) * 120))
+
+    def move_abs(self, u, v):
+        try:
+            w = self.user32.GetSystemMetrics(0)
+            h = self.user32.GetSystemMetrics(1)
+            u = max(0.0, min(1.0, float(u)))
+            v = max(0.0, min(1.0, float(v)))
+            x = int(round(u * (w - 1)))
+            y = int(round(v * (h - 1)))
+            self.user32.SetCursorPos(x, y)
+        except Exception:
+            pass
+
+    def click_abs(self, u, v, btn="L"):
+        self.move_abs(u, v)
+        self.click(btn)
+
+    def release_all(self):
+        try:
+            self.button("L", False)
+            self.button("R", False)
+            self.button("M", False)
+            for vk in (0x10, 0x11, 0x12, 0x5B):
+                self.user32.keybd_event(vk, 0, self.KEYUP, 0)
+        except Exception:
+            pass
 
     def key(self, name):
         name = name.upper().strip()
@@ -649,6 +678,15 @@ class ReceiverEngine:
                 b.action(p)
             elif cmd == "J":
                 b.display_jump(p)
+            elif cmd == "N":
+                u, v = p.split(",")
+                b.move_abs(float(u), float(v))
+            elif cmd == "O":
+                parts = p.split(",")
+                btn = parts[2] if len(parts) > 2 else "L"
+                b.click_abs(float(parts[0]), float(parts[1]), btn)
+            elif cmd == "Q":
+                b.release_all()
             elif cmd == "B":
                 b.clipboard(p)
             elif cmd == "W":

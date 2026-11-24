@@ -62,6 +62,27 @@ object AssetInstallerManager {
     }
 
     /**
+     * Retrieves or extracts the full Windows receiver zip archive (.zip) from app assets into cache.
+     * Preferred for Bluetooth transfer because Android and Windows block raw .exe files.
+     */
+    suspend fun getReceiverZipFile(context: Context): File = withContext(Dispatchers.IO) {
+        val receiverDir = File(context.cacheDir, "receiver").apply { mkdirs() }
+        val targetZip = File(receiverDir, RECEIVER_ZIP_NAME)
+        if (!targetZip.exists() || targetZip.length() == 0L) {
+            try {
+                context.assets.open(ASSET_ZIP_PATH).use { input ->
+                    FileOutputStream(targetZip).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to copy asset zip: ${e.message}", e)
+            }
+        }
+        targetZip
+    }
+
+    /**
      * Opens direct stream to the bundled receiver zip archive in assets.
      */
     fun openReceiverZipStream(context: Context): InputStream {

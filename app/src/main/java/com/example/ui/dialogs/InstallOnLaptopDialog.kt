@@ -709,18 +709,27 @@ fun InstallOnLaptopDialog(
 
                                 if (state.installTargetType == InstallTargetType.BLUETOOTH) {
                                     Text(
-                                        text = "👉 Check your Windows laptop screen:\nWindows will display a balloon notification: 'Bluetooth File Transfer: Incoming file from ${state.activeHostName}...'. Click 'Accept' or 'Save' to receive the installer.",
+                                        text = "👉 Crucial step on Windows:\n1. Right-click the Bluetooth icon in your Windows taskbar (near the clock) and click 'Receive a file'.\n2. Windows will show 'Waiting for a connection...'.\n3. Tap 'Send Install Request' above to beam the installer.\n(Windows blocks incoming Bluetooth files unless 'Receive a file' is open!).",
                                         fontSize = 11.5.sp,
                                         color = Color(0xFFCBD5E1),
                                         lineHeight = 16.sp
                                     )
                                 } else {
-                                    Text(
-                                        text = "👉 Open Chrome or Edge on your laptop and go to:\n${state.wifiDropServerUrl.ifBlank { "http://" + state.localIp + ":8080" }}\nThen click 'Accept & Download'.",
-                                        fontSize = 11.5.sp,
-                                        color = Color(0xFFCBD5E1),
-                                        lineHeight = 16.sp
-                                    )
+                                    if (state.localIp == "127.0.0.1") {
+                                        Text(
+                                            text = "⚠️ Wi-Fi or Hotspot Required:\nYour phone is not connected to Wi-Fi.\n• Connect phone and laptop to the SAME Wi-Fi router, OR\n• Turn on your phone's Personal Hotspot and connect your laptop to it.\n(Do not use http://127.0.0.1 on laptop - that is the laptop itself!).",
+                                            fontSize = 11.5.sp,
+                                            color = Color(0xFFFBBF24),
+                                            lineHeight = 16.sp
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "👉 Open Chrome or Edge on your laptop and go to:\n${state.wifiDropServerUrl.ifBlank { "http://" + state.localIp + ":8080" }}\nThen click 'Accept & Download'.",
+                                            fontSize = 11.5.sp,
+                                            color = Color(0xFFCBD5E1),
+                                            lineHeight = 16.sp
+                                        )
+                                    }
 
                                     Spacer(modifier = Modifier.height(10.dp))
 
